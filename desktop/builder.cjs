@@ -11,8 +11,6 @@ module.exports = {
     // electron-builder excludes a source root's node_modules unless mapped explicitly.
     { from: '.desktop/server/node_modules', to: 'server/node_modules' },
     { from: '.desktop/runtime', to: 'runtime' },
-    // electron-builder excludes a source root's node_modules unless mapped explicitly.
-    ...(process.platform === 'win32' ? [{ from: '.desktop/runtime/node_modules', to: 'runtime/node_modules' }] : []),
     { from: '.desktop/licenses', to: 'licenses' },
     { from: 'desktop/server.cjs', to: 'server.cjs' },
     { from: 'public/icons/app-icon.png', to: 'app-icon.png' },

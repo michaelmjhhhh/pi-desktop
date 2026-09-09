@@ -39,28 +39,10 @@ jobs:
       - run: npm test
 
   package:
-    name: Package ${{ matrix.name }}
+    name: Package macOS arm64
     needs: verify
     timeout-minutes: 45
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: macOS arm64
-            runner: macos-15
-            artifact: pi-desktop-macos-arm64
-            files: |
-              dist/*.dmg
-              dist/*.zip
-          - name: Windows x64
-            runner: windows-2025
-            artifact: pi-desktop-windows-x64
-            files: dist/*.exe
-          - name: Linux x64
-            runner: ubuntu-24.04
-            artifact: pi-desktop-linux-x64
-            files: dist/*.AppImage
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -75,8 +57,10 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.files }}
+          name: pi-desktop-macos-arm64
+          path: |
+            dist/*.dmg
+            dist/*.zip
           if-no-files-found: error
           retention-days: 7
           compression-level: 0
@@ -92,9 +76,8 @@ jobs:
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: pi-desktop-*
+          name: pi-desktop-macos-arm64
           path: release-assets
-          merge-multiple: true
       - name: Generate checksums
         working-directory: release-assets
         run: sha256sum * > SHA256SUMS.txt
