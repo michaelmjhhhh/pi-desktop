@@ -34,7 +34,6 @@ import {
   shouldShowBrowserNotification,
   showBrowserNotification,
 } from "@/lib/browser-notifications";
-import { setupPushSubscription } from "@/lib/push-client";
 import { getInitialNavigation } from "@/lib/initial-navigation";
 import { rekeyDraft } from "@/lib/draft-store";
 import {
@@ -89,14 +88,6 @@ export function AppShell() {
   const isNarrowMobile = useIsNarrowMobile();
   useViewportHeight();
 
-  // Once the user has granted notification permission, register a Web Push
-  // subscription so the server can notify backgrounded PWAs (notably iOS,
-  // which suspends page JS and never receives the SSE completion event).
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
-    void setupPushSubscription(locale);
-  }, [locale]);
   // Audio ownership lives here (not in ChatWindow) so the completion tone can
   // also fire for tasks finishing in a non-active workspace whose ChatWindow
   // is not mounted. ChatWindow receives the audio callbacks as props.
@@ -895,16 +886,14 @@ export function AppShell() {
 
     if (Notification.permission === "granted") {
       fire();
-      void setupPushSubscription(locale);
     } else if (Notification.permission === "default") {
       void Notification.requestPermission().then((p) => {
         if (p === "granted") {
           fire();
-          void setupPushSubscription(locale);
         }
       });
     }
-  }, [handleSelectSession, locale]);
+  }, [handleSelectSession]);
 
   const handleAgentEnd = useCallback(() => {
     setRefreshKey((k) => k + 1);
@@ -1161,7 +1150,7 @@ export function AppShell() {
 
   const activeFileTab = fileTabs.find((tab) => tab.id === activeFileTabId) ?? null;
   const activeCwdName = activeCwd ? getFileName(activeCwd) || activeCwd : null;
-  const windowTitle = activeCwdName ? `${activeCwdName} - Pi Web` : "Pi Web";
+  const windowTitle = activeCwdName ? `${activeCwdName} - Pi Desktop` : "Pi Desktop";
 
   useEffect(() => {
     const syncWindowTitle = () => {

@@ -331,7 +331,7 @@ function PiWebTitle() {
   const [scrambling, setScrambling] = useState(false);
   const revertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "Pi Web";
+  const target = showVersion ? `${process.env.NEXT_PUBLIC_APP_VERSION ?? "0.0.0"}p${process.env.NEXT_PUBLIC_PI_VERSION ?? "0.0.0"}` : "Pi Desktop";
   const display = useScramble(target, scrambling);
 
   const triggerScramble = useCallback((toVersion: boolean) => {
@@ -515,6 +515,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let controller: AbortController | null = null;
+    let lastSessionScan = 0;
 
     const clearTimer = () => {
       if (timer) clearTimeout(timer);
@@ -549,8 +550,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           data.completionNotificationSuppressedSessionIds ?? [],
         );
         setRunningSessionIds(new Set(data.runningSessionIds ?? []));
-        if (data.sessionListVersion !== sessionListVersionRef.current) {
-          // Reuse the invalidated cache; forcing a scan would change the version again.
+        if (data.sessionListVersion !== sessionListVersionRef.current || Date.now() - lastSessionScan >= 15000) {
+          // Also discover sessions created by the local Pi CLI while the app is open.
+          lastSessionScan = Date.now();
           await loadSessions();
         }
       } catch {

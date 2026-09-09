@@ -1,6 +1,6 @@
 import type { LocalePlugin } from "../types";
 
-/** Pi Web 内置英语语言包。 */
+/** Pi Desktop 内置英语语言包。 */
 export const enLocale: LocalePlugin = {
   id: "en",
   label: "English",
@@ -14,7 +14,7 @@ export const enLocale: LocalePlugin = {
     "common.settings": "Settings",
     "settings.title": "Settings",
     "settings.general": "General",
-    "settings.generalDescription": "Choose how Pi Web looks and which language it uses.",
+    "settings.generalDescription": "Choose how Pi Desktop looks and which language it uses.",
     "settings.appearance": "Appearance",
     "settings.appearanceDescription": "Select a theme or follow your system preference.",
     "settings.chatContentWidth": "Chat content width",
@@ -38,21 +38,12 @@ export const enLocale: LocalePlugin = {
     "settings.shellToolDescription": "Choose which shell the model uses for commands. Direct ! and !! commands still use Bash.",
     "settings.usePowerShell": "Use PowerShell instead of Bash",
     "settings.projectRequired": "Open a project to configure this section",
-    "auth.prompt": "Sign in to continue",
-    "auth.password": "Password",
-    "auth.logIn": "Log in",
-    "auth.loggingIn": "Logging in...",
-    "auth.invalidPassword": "Incorrect password",
-    "auth.loginFailed": "Could not log in. Try again.",
-    "auth.logOut": "Log out",
-    "auth.loggingOut": "Logging out...",
-    "auth.logoutFailed": "Could not log out. Try again.",
     "skills.scope.global": "global",
     "skills.scope.project": "project",
     "skills.scope.path": "path",
     "agents.close": "Close",
-    "agents.builtInTitle": "Enable Pi Web built-in sub-agents",
-    "agents.builtInDescription": "Provides Pi Web's integrated Agent tools and disables a conflicting pi-subagents extension.",
+    "agents.builtInTitle": "Enable Pi Desktop built-in sub-agents",
+    "agents.builtInDescription": "Provides Pi Desktop's integrated Agent tools and disables a conflicting pi-subagents extension.",
     "agents.reloadRequired": "Reload the current session to apply this change.",
     "agents.reloadSession": "Reload session",
     "agents.reloading": "Reloading...",
@@ -105,7 +96,6 @@ export const enLocale: LocalePlugin = {
     "agentSwitcher.status.failed": "Failed",
     "agentSwitcher.status.aborted": "Aborted",
     "agentSwitcher.status.interrupted": "Interrupted",
-    "appUpdate.releaseNotes": "Pi Web v{version} is available. View release notes",
     "sidebar.hide": "Hide sidebar",
     "sidebar.show": "Show sidebar",
     "theme.light": "Theme: Light",

@@ -40,20 +40,14 @@ without splitting Unicode characters. Failed input is not retried because its
 delivery may be ambiguous. Reconnect attaches to the same process with a fresh
 writer; restart explicitly replaces the process.
 
-`bin/prepare-terminal.js` repairs node-pty 1.1.0's macOS spawn-helper executable
-bits during installation, including published/npm-installed Pi Web packages.
+`bin/prepare-terminal.js` and the desktop staging script preserve the executable
+mode of node-pty's macOS spawn helper. Pi Desktop pins node-pty to
+`1.2.0-beta.15` and runs it in the bundled Node 22.22.2 runtime, avoiding an
+Electron native-module ABI mismatch.
 
-Pi Web pins node-pty to `1.2.0-beta.15`, which includes Linux x64 and ARM64
-prebuilt binaries. Native module loading is deferred until terminal creation,
-so missing or incompatible binaries produce a JSON error with repair instructions.
-Empty or non-JSON API errors show the HTTP status and direct users to the server log.
-
-If a native binary cannot load, run
-`npm rebuild node-pty --build-from-source --ignore-scripts=false --foreground-scripts` from the
-installation directory (for npx, the cache directory containing `node_modules`).
-On Debian/Ubuntu, install `python3` and `build-essential` first. This forces a
-source build instead of reusing a missing or incompatible prebuilt binary.
-Restart Pi Web after repair.
+For a native module failure, inspect Help → Open logs. Developers should rebuild
+node-pty using Node 22.22.2 on the target platform, then rebuild and repackage the
+application. End users should replace the application with a repaired package.
 
 ## Verification
 

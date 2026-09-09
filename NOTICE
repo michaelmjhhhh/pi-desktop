@@ -1,0 +1,11 @@
+Pi Desktop is derived from Pi Web by agegr:
+https://github.com/agegr/pi-web
+
+Original software: Copyright (c) 2026 agegr.
+Licensed under the MIT License; the complete original license is included in LICENSE.
+Desktop modifications are maintained separately in Pi Desktop.
+Third-party dependencies retain their respective licenses.
+
+Packaged applications include third-party notices under Resources/licenses (macOS)
+or resources/licenses (Windows/Linux), plus the Node distribution license under runtime/LICENSE.
+Noto Sans Mono: Copyright 2022 The Noto Project Authors, SIL Open Font License 1.1.

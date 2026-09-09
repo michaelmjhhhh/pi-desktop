@@ -1,6 +1,6 @@
 import type { LocalePlugin } from "../types";
 
-/** Pi Web 內建繁體中文語系。 */
+/** Pi Desktop 內建繁體中文語系。 */
 export const zhTWLocale: LocalePlugin = {
   id: "zh-TW",
   label: "繁體中文",
@@ -14,7 +14,7 @@ export const zhTWLocale: LocalePlugin = {
     "common.settings": "設定",
     "settings.title": "設定",
     "settings.general": "一般",
-    "settings.generalDescription": "選擇 Pi Web 的外觀與介面語言。",
+    "settings.generalDescription": "選擇 Pi Desktop 的外觀與介面語言。",
     "settings.appearance": "外觀",
     "settings.appearanceDescription": "選擇淺色或深色主題，也可以跟隨系統設定。",
     "settings.chatContentWidth": "聊天內容寬度",
@@ -38,21 +38,12 @@ export const zhTWLocale: LocalePlugin = {
     "settings.shellToolDescription": "選擇模型執行命令時使用的 Shell。直接輸入的 ! 和 !! 命令仍使用 Bash。",
     "settings.usePowerShell": "使用 PowerShell 取代 Bash",
     "settings.projectRequired": "開啟專案後才能設定此項",
-    "auth.prompt": "登入後繼續使用",
-    "auth.password": "密碼",
-    "auth.logIn": "登入",
-    "auth.loggingIn": "正在登入...",
-    "auth.invalidPassword": "密碼不正確",
-    "auth.loginFailed": "登入失敗，請再試一次。",
-    "auth.logOut": "登出",
-    "auth.loggingOut": "正在登出...",
-    "auth.logoutFailed": "登出失敗，請再試一次。",
     "skills.scope.global": "全域",
     "skills.scope.project": "專案",
     "skills.scope.path": "路徑",
     "agents.close": "關閉",
-    "agents.builtInTitle": "啟用 Pi Web 內建子代理",
-    "agents.builtInDescription": "提供 Pi Web 整合的 Agent 工具，並停用發生衝突的 pi-subagents 擴充功能。",
+    "agents.builtInTitle": "啟用 Pi Desktop 內建子代理",
+    "agents.builtInDescription": "提供 Pi Desktop 整合的 Agent 工具，並停用發生衝突的 pi-subagents 擴充功能。",
     "agents.reloadRequired": "重新載入目前工作階段後生效。",
     "agents.reloadSession": "重新載入工作階段",
     "agents.reloading": "正在重新載入...",
@@ -105,7 +96,6 @@ export const zhTWLocale: LocalePlugin = {
     "agentSwitcher.status.failed": "失敗",
     "agentSwitcher.status.aborted": "已中止",
     "agentSwitcher.status.interrupted": "已中斷",
-    "appUpdate.releaseNotes": "Pi Web v{version} 已推出，查看版本資訊",
     "sidebar.hide": "隱藏側邊欄",
     "sidebar.show": "顯示側邊欄",
     "theme.light": "主題：淺色",
