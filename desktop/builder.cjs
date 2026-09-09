@@ -13,6 +13,7 @@ module.exports = {
     { from: '.desktop/runtime', to: 'runtime' },
     { from: '.desktop/licenses', to: 'licenses' },
     { from: 'desktop/server.cjs', to: 'server.cjs' },
+    { from: 'public/icons/app-icon.png', to: 'app-icon.png' },
     { from: 'LICENSE', to: 'LICENSE' },
     { from: 'NOTICE', to: 'NOTICE' },
   ],
@@ -20,9 +21,9 @@ module.exports = {
   npmRebuild: false,
   // Backend dependencies are already traced into extraResources/server.
   nodeGypRebuild: false,
-  mac: { identity: process.env.CSC_NAME || '-', icon: 'public/icons/icon-512.png', target: ['zip', 'dmg'], category: 'public.app-category.developer-tools' },
-  win: { target: ['portable'] },
-  linux: { target: ['AppImage'], category: 'Development' },
+  mac: { identity: process.env.CSC_NAME || '-', icon: 'public/icons/app-icon.png', target: ['zip', 'dmg'], category: 'public.app-category.developer-tools' },
+  win: { icon: 'public/icons/app-icon.png', target: ['portable'] },
+  linux: { icon: 'public/icons/app-icon.png', target: ['AppImage'], category: 'Development' },
   publish: null,
   afterPack: async (context) => {
     const resources = context.electronPlatformName === 'darwin'

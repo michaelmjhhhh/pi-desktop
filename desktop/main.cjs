@@ -14,6 +14,7 @@ let quitting = false;
 let stopped = false;
 const development = !app.isPackaged && process.argv.includes('--dev');
 const token = randomBytes(32).toString('hex');
+const iconPath = app.isPackaged ? join(process.resourcesPath, 'app-icon.png') : join(__dirname, '..', 'public', 'icons', 'app-icon.png');
 
 async function startBackend() {
   if (development) return 'http://127.0.0.1:30141';
@@ -68,6 +69,7 @@ function openExternal(url) {
 async function createWindow() {
   window = new BrowserWindow({
     width: 1440, height: 960, minWidth: 900, minHeight: 600,
+    icon: iconPath,
     title: 'Pi Desktop', show: false, backgroundColor: '#1a1a1a',
     webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   });
@@ -87,6 +89,7 @@ if (!app.requestSingleInstanceLock()) {
     if (window) { if (window.isMinimized()) window.restore(); window.show(); window.focus(); }
   });
   app.whenReady().then(async () => {
+    app.dock?.setIcon(iconPath);
     app.setAboutPanelOptions({
       applicationName: 'Pi Desktop', applicationVersion: app.getVersion(),
       copyright: 'Based on Pi Web. Copyright © 2026 agegr. MIT License.',
