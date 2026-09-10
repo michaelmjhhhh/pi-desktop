@@ -1,13 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_Mono } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "katex/dist/katex.min.css";
 import "./globals.css";
 import "./settings.css";
 
-const notoSansMono = Noto_Sans_Mono({
+const jetBrainsMono = JetBrains_Mono({
   subsets: ["latin", "cyrillic"],
-  variable: "--font-noto-mono",
+  variable: "--font-jetbrains-mono",
   display: "swap",
 });
 
@@ -53,7 +53,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" translate="no" className={`${notoSansMono.variable} notranslate`} suppressHydrationWarning>
+    <html lang="en" translate="no" className={`${jetBrainsMono.variable} notranslate`} suppressHydrationWarning>
       <head>
         <meta name="google" content="notranslate" />
         <script

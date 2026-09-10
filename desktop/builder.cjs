@@ -30,7 +30,7 @@ module.exports = {
       ? join(context.appOutDir, 'Pi Desktop.app', 'Contents', 'Resources')
       : join(context.appOutDir, 'resources');
     for (const file of ['server.cjs', 'LICENSE', 'NOTICE',
-      'licenses/THIRD_PARTY_NOTICES.txt', 'licenses/LICENSES.chromium.html', 'licenses/NotoSansMono-OFL.txt',
+      'licenses/THIRD_PARTY_NOTICES.txt', 'licenses/LICENSES.chromium.html', 'licenses/NotoSansMono-OFL.txt', 'licenses/JetBrainsMono-OFL.txt',
       'server/node_modules/next/package.json', 'server/node_modules/node-pty/package.json',
       'server/node_modules/@earendil-works/pi-coding-agent/package.json',
       context.electronPlatformName === 'win32' ? 'runtime/node.exe' : 'runtime/bin/node',

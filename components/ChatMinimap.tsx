@@ -21,8 +21,8 @@ interface Props {
 }
 
 const MINIMAP_WIDTH = 36;
-const MAX_NODE_GAP = 50;
-const MINIMAP_PADDING = 12;
+const MAX_NODE_GAP = 12;
+const MINIMAP_PADDING = 28;
 const PREVIEW_HIDE_DELAY = 250;
 const NAVIGATION_ACTIVE_LOCK_MS = 1600;
 
@@ -209,7 +209,7 @@ function layoutNodes(allNodes: NodeInfo[], minimapHeight: number): NodeLayout {
   const usableHeight = Math.max(0, height - MINIMAP_PADDING * 2);
   if (allNodes.length === 1) {
     return {
-      nodes: [{ ...allNodes[0], topRatio: MINIMAP_PADDING / height }],
+      nodes: [{ ...allNodes[0], topRatio: 0.5 }],
       gap: MAX_NODE_GAP,
       fillsHeight: false,
     };
@@ -217,10 +217,11 @@ function layoutNodes(allNodes: NodeInfo[], minimapHeight: number): NodeLayout {
 
   const naturalGap = usableHeight / (allNodes.length - 1);
   const gap = Math.min(MAX_NODE_GAP, naturalGap);
+  const topOffset = (height - gap * (allNodes.length - 1)) / 2;
   return {
     nodes: allNodes.map((node, index) => ({
       ...node,
-      topRatio: (MINIMAP_PADDING + index * gap) / height,
+      topRatio: (topOffset + index * gap) / height,
     })),
     gap,
     fillsHeight: naturalGap <= MAX_NODE_GAP,
@@ -554,10 +555,11 @@ export function ChatMinimap({
   const handleMouseDown = useCallback((event: React.MouseEvent<HTMLDivElement>) => {
     if (!visible) return;
 
-    draggingRef.current = true;
-    showPreview();
     const rect = event.currentTarget.getBoundingClientRect();
     const pointerRatio = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+    if (!findNearestNode(pointerRatio)) return;
+    draggingRef.current = true;
+    showPreview();
     setMouseYRatio(pointerRatio);
     const jumpToPointer = (clientY: number, behavior: ScrollBehavior) => {
       const ratio = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
@@ -596,20 +598,24 @@ export function ChatMinimap({
 
   if (!visible) return null;
 
-  const lastNodeTop = positionedNodes.length > 0
-    ? positionedNodes[positionedNodes.length - 1].topRatio * minimapHeight
-    : MINIMAP_PADDING;
-  const railHeight = Math.max(1, lastNodeTop - MINIMAP_PADDING);
 
   return (
     <div
       ref={containerRef}
+      className={styles.navigator}
+      role="navigation"
+      aria-label={t("chatMinimap.navigation")}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) schedulePreviewHide();
+      }}
       onMouseDown={handleMouseDown}
-      onMouseEnter={showPreview}
       onMouseLeave={schedulePreviewHide}
       onMouseMove={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
-        setMouseYRatio((event.clientY - rect.top) / rect.height);
+        const ratio = (event.clientY - rect.top) / rect.height;
+        setMouseYRatio(ratio);
+        if (findNearestNode(ratio)) showPreview();
+        else if (!draggingRef.current) schedulePreviewHide();
       }}
       style={{
         width: MINIMAP_WIDTH,
@@ -617,60 +623,55 @@ export function ChatMinimap({
         position: "relative",
         cursor: "pointer",
         userSelect: "none",
-        borderLeft: "1px solid var(--border)",
-        background: "var(--bg-panel)",
+        background: "transparent",
         overflow: "visible",
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: MINIMAP_PADDING,
-          height: railHeight,
-          width: 1,
-          background: "var(--border)",
-          transform: "translateX(-50%)",
-          zIndex: 0,
-        }}
-      />
-
       {positionedNodes.map((node) => {
         const isNearest = minimapHovered && nearestNode?.index === node.index;
         const isActive = activeIndex === node.index;
 
         return (
-          <div
+          <button
+            type="button"
             key={node.index}
+            className={styles.marker}
             data-minimap-node-index={node.index}
             data-minimap-node-active={isActive ? "" : undefined}
+            data-hovered={isNearest || undefined}
+            aria-current={isActive ? "step" : undefined}
+            aria-label={t("chatMinimap.jumpToMessage", { number: node.index + 1, preview: getUserPreview(node.targetTurn.userMessage).slice(0, 160) })}
+            tabIndex={isActive || (activeIndex === null && node.index === 0) ? 0 : -1}
+            onFocus={() => { showPreview(); setMouseYRatio(node.topRatio); }}
+            onClick={(event) => {
+              // Pointer navigation is handled by the rail's drag gesture.
+              if (event.detail === 0) scrollToNode(node, "smooth");
+            }}
+            onKeyDown={(event) => {
+              let nextIndex: number;
+              if (event.key === "ArrowDown") nextIndex = Math.min(positionedNodes.length - 1, node.index + 1);
+              else if (event.key === "ArrowUp") nextIndex = Math.max(0, node.index - 1);
+              else if (event.key === "Home") nextIndex = 0;
+              else if (event.key === "End") nextIndex = positionedNodes.length - 1;
+              else if (event.key === "Escape") {
+                cancelPreviewHide();
+                setMinimapHovered(false);
+                setMouseYRatio(null);
+                return;
+              } else return;
+              event.preventDefault();
+              const nextNode = positionedNodes[nextIndex];
+              if (!nextNode) return;
+              containerRef.current?.querySelector<HTMLButtonElement>(`[data-minimap-node-index="${nextIndex}"]`)?.focus();
+              scrollToNode(nextNode, "smooth");
+            }}
             style={{
-              position: "absolute",
               top: `${node.topRatio * 100}%`,
-              transform: "translateY(-50%)",
-              left: 0,
-              right: 0,
               height: Math.max(1, nodeGap),
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              pointerEvents: "none",
-              zIndex: 2,
             }}
           >
-            <div
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 2,
-                background: isActive ? "rgba(128,128,128,0.42)" : "rgba(128,128,128,0.16)",
-                border: `1.5px solid ${isActive ? "rgba(128,128,128,0.95)" : "rgba(128,128,128,0.58)"}`,
-                boxShadow: isActive ? "0 0 0 2px var(--bg-panel)" : "none",
-                transition: "transform 0.1s, background 0.1s",
-                transform: isNearest ? "scale(1.25)" : "scale(1)",
-              }}
-            />
-          </div>
+            <span className={styles.markerBar} style={{ height: Math.min(3, Math.max(1, nodeGap * 0.4)) }} />
+          </button>
         );
       })}
 

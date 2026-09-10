@@ -325,7 +325,7 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
       className="settings-dialog-backdrop"
     >
-      <div className="settings-dialog-surface">
+      <div className="settings-dialog-surface" data-section={section}>
         <div className="settings-dialog-header">
           <strong className="settings-dialog-title">{t("settings.title")}</strong>
           <select

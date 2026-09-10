@@ -1,3 +1,52 @@
+/* Quiet message markers; the whole row remains clickable. */
+.navigator .marker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.markerBar {
+  display: block;
+  width: 12px;
+  border-radius: 999px;
+  background: var(--text-dim);
+  opacity: 0.4;
+  transition: width 120ms ease, opacity 120ms ease, background 120ms ease;
+  pointer-events: none;
+}
+
+.marker[data-minimap-node-active] .markerBar {
+  background: var(--text);
+  opacity: 0.95;
+}
+
+.marker[data-hovered] .markerBar,
+.marker:hover .markerBar,
+.marker:focus-visible .markerBar {
+  width: 18px;
+  opacity: 1;
+}
+
+.marker:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .markerBar { transition: none; }
+}
+
 .preview {
   position: absolute;
   top: 0;

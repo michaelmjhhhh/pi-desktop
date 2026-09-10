@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useState, useCallback, useMemo, useRef, type CSSProperties, type ReactNode } from "react";
 import type { SessionInfo } from "@/lib/types";
 import { listSessionFamilies } from "@/lib/session-family";
+import { FolderIcon } from "./FileIcons";
 import { loadExplorerOpen, saveExplorerOpen } from "@/lib/file-explorer-state";
 import { dispatchSessionRowContextMenu } from "@/lib/session-row-context-menu";
 import { skillExpansionToCommand } from "@/lib/slash-display";
@@ -113,6 +114,7 @@ interface Props {
     projectKey?: string | null,
   ) => void;
   onOpenFile?: (filePath: string, fileName: string, options?: { sourceSessionId?: string | null; modeHint?: "diff" }) => void;
+  onOpenProjectSettings?: (cwd: string) => void;
   onOpenTerminal?: (cwd: string) => void;
   explorerRefreshKey?: number;
   onExplorerRefresh?: () => void;
@@ -369,7 +371,7 @@ function PiWebTitle() {
   );
 }
 
-export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenFile, onOpenTerminal, explorerRefreshKey, onExplorerRefresh, onAtMention, onAtMentions, onBackgroundTaskDone, onRunningSessionIdsChange, onSessionsChange }: Props) {
+export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSession, initialSessionId, skipInitialProjectSelection, onInitialRestoreDone, refreshKey, onSessionDeleted, selectedCwd: selectedCwdProp, onCwdChange, onOpenProjectSettings, onOpenFile, onOpenTerminal, explorerRefreshKey, onExplorerRefresh, onAtMention, onAtMentions, onBackgroundTaskDone, onRunningSessionIdsChange, onSessionsChange }: Props) {
   const { t } = useI18n();
   const [allSessions, setAllSessions] = useState<SessionInfo[]>([]);
   const [sessionListVersion, setSessionListVersion] = useState<number | null>(null);
@@ -380,6 +382,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [selectedCwd, setSelectedCwd] = useState<string | null>(null);
   const [homeDir, setHomeDir] = useState<string>("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [browseAllProjects, setBrowseAllProjects] = useState(false);
   const [projectFilter, setProjectFilter] = useState("");
   const [wtFilter, setWtFilter] = useState("");
   const [customPathOpen, setCustomPathOpen] = useState(false);
@@ -399,12 +402,19 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [worktreeLoadingCwd, setWorktreeLoadingCwd] = useState<string | null>(null);
   const wtDropdownRef = useRef<HTMLDivElement>(null);
   const wtNewInputRef = useRef<HTMLInputElement>(null);
-  const [explorerOpen, setExplorerOpen] = useState(true);
+  const [explorerOpen, setExplorerOpen] = useState(false);
   const [explorerKey, setExplorerKey] = useState(0);
   const [explorerUploadBusy, setExplorerUploadBusy] = useState(false);
   const [fileSearchOpen, setFileSearchOpen] = useState(false);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
   const [sessionSearchOpen, setSessionSearchOpen] = useState(false);
   const [sessionSearchQuery, setSessionSearchQuery] = useState("");
+  const closeSessionSearch = useCallback(() => {
+    setSessionSearchQuery("");
+    setSessionSearchOpen(false);
+    requestAnimationFrame(() => searchTriggerRef.current?.focus());
+  }, []);
+
   const sessionSearchActive = sessionSearchOpen && Boolean(sessionSearchQuery.trim());
   const [changesCount, setChangesCount] = useState(0);
   const [changesCollapsed, setChangesCollapsed] = useState(true);
@@ -811,6 +821,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       saveLastCustomCwd(data.cwd);
       setCustomPathValue(data.cwd);
       setSelectedCwd(data.cwd);
+      setBrowseAllProjects(false);
       setCustomPathOpen(false);
       setDropdownOpen(false);
     } catch (e) {
@@ -831,6 +842,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       const data = await res.json() as { cwd?: string; error?: string };
       if (data.cwd) {
         setSelectedCwd(data.cwd);
+      setBrowseAllProjects(false);
         setCustomPathOpen(false);
         setCustomPathError(null);
         setDropdownOpen(false);
@@ -939,6 +951,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
 
   const handleNewSession = useCallback(() => {
     if (!selectedCwd) return;
+    setBrowseAllProjects(false);
     // Generate a temporary UUID client-side — no backend call needed.
     // Pi will be spawned lazily when the user sends the first message.
     const tempId = typeof crypto.randomUUID === "function"
@@ -947,14 +960,14 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     onNewSession?.(tempId, selectedCwd);
   }, [selectedCwd, onNewSession]);
 
+  const selectedProject = projectFor(selectedCwd);
   const recentProjects = getRecentProjects(allSessions);
-  const showProjectFilter = recentProjects.length > 8;
+  if (selectedProject && !recentProjects.some((project) => project.key === selectedProject.key)) {
+    recentProjects.unshift(selectedProject);
+  }
   const visibleProjects = projectFilter.trim()
     ? recentProjects.filter((project) => project.root.toLowerCase().includes(projectFilter.trim().toLowerCase()))
     : recentProjects;
-
-  // Sessions of every worktree in the selected project are shown together
-  const selectedProject = projectFor(selectedCwd);
 
   // Per-project activity counts (running / unread) for the workspace selector.
   // Uses the same stable server key as the project list and filtering.
@@ -973,11 +986,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     [projectActivity, selectedProject],
   );
 
-  const filteredSessions = selectedProject
+  const filteredSessions = selectedProject && !browseAllProjects
     ? sessionsForProject(allSessions, selectedProject.key)
     : allSessions;
   const showWorktreeSwitcher = Boolean(
-    worktreeState?.isGit
+    !browseAllProjects && worktreeState?.isGit
     && worktreeState.isTopLevel
     && selectedCwd
     && selectedProject?.key === worktreeState.projectKey
@@ -1030,75 +1043,90 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       )}
       {/* Header */}
       <div
+        className="workspace-sidebar-header"
         style={{
           padding: "12px 10px 10px",
           borderBottom: "1px solid var(--border)",
           flexShrink: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-          <PiWebTitle />
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={handleNewSession}
-              disabled={!selectedCwd}
-              style={{
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                background: "var(--bg-hover)",
-                border: "1px solid var(--border)",
-                color: selectedCwd ? "var(--text-muted)" : "var(--text-dim)",
-                cursor: selectedCwd ? "pointer" : "not-allowed",
-                height: 32,
-                paddingLeft: 10,
-                paddingRight: 12,
-                borderRadius: 7,
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: "-0.01em",
-                flexShrink: 0,
-                transition: "background 0.12s, color 0.12s, border-color 0.12s",
-              }}
-             title={selectedCwd ? t("sidebar.newSessionTitle", { path: selectedCwd }) : t("sidebar.selectProject")}
-              onMouseEnter={(e) => {
-                if (!selectedCwd) return;
-                e.currentTarget.style.background = "var(--bg-selected)";
-                e.currentTarget.style.color = "var(--accent)";
-                e.currentTarget.style.borderColor = "rgba(37,99,235,0.35)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--bg-hover)";
-                e.currentTarget.style.color = selectedCwd ? "var(--text-muted)" : "var(--text-dim)";
-                e.currentTarget.style.borderColor = "var(--border)";
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
-                <line x1="6" y1="1" x2="6" y2="11" />
-                <line x1="1" y1="6" x2="11" y2="6" />
-              </svg>
-              {t("sidebar.new")}
-            </button>
+        <div className="workspace-brand"><span aria-hidden="true" className="workspace-brand-mark">π</span><PiWebTitle /></div>
+        <div className="workspace-navigation">
+          <div className="workspace-navigation-actions">
+            {sessionSearchOpen ? (
+              <div className="workspace-search-field">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 4.5 4.5" /></svg>
+                <input
+                  id="session-search-input"
+                  type="search"
+                  autoFocus
+                  value={sessionSearchQuery}
+                  maxLength={200}
+                  aria-label={t("sidebar.searchSessions")}
+                  placeholder={t("workspace.search")}
+                  onChange={(event) => setSessionSearchQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.stopPropagation();
+                      closeSessionSearch();
+                    }
+                  }}
+                />
+                <button type="button" aria-label={t("workspace.closeSearch")} title={t("workspace.closeSearch")} onClick={closeSessionSearch}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+                </button>
+              </div>
+            ) : (
             <button
               type="button"
               onClick={() => {
                 setSessionSearchOpen((open) => !open);
                 setWtDropdownOpen(false);
               }}
+              ref={searchTriggerRef}
               title={t("sidebar.toggleSessionSearch")}
               aria-label={t("sidebar.toggleSessionSearch")}
               aria-expanded={sessionSearchOpen}
               aria-controls="session-search-input"
-              className={`flex h-[32px] w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-border hover:bg-bg-selected focus-visible:outline-2 focus-visible:outline-accent ${sessionSearchOpen ? "bg-bg-selected text-accent" : "bg-bg-hover text-text-muted"}`}
+              className={`workspace-search flex h-[32px] w-[32px] shrink-0 cursor-pointer items-center justify-center rounded-[7px] border border-border hover:bg-bg-selected focus-visible:outline-2 focus-visible:outline-accent ${sessionSearchOpen ? "bg-bg-selected text-accent" : "bg-bg-hover text-text-muted"}`}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" />
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 4.5 4.5" />
+              </svg>
+              <span>{t("workspace.search")}</span>
+            </button>
+            )}
+            <button
+              type="button"
+              className="workspace-new-thread"
+              onClick={handleNewSession}
+              disabled={!selectedCwd}
+              aria-label={t("workspace.newThread")}
+              title={selectedCwd ? t("sidebar.newSessionTitle", { path: selectedCwd }) : t("sidebar.selectProject")}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.375 2.625a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z" />
               </svg>
             </button>
           </div>
         </div>
 
         {/* CWD picker */}
-        <div ref={dropdownRef} style={{ position: "relative" }}>
+        <div className="workspace-section-label">{t("workspace.project")}</div>
+        <div ref={dropdownRef} className="workspace-project-control" style={{ position: "relative" }} onKeyDown={(event) => {
+          if (event.key === "Escape" && dropdownOpen) {
+            event.stopPropagation();
+            setDropdownOpen(false);
+            dropdownRef.current?.querySelector("button")?.focus();
+          }
+        }}>
+          <div className="workspace-project-row">
           <button
+            className="workspace-project-picker"
+            aria-expanded={dropdownOpen}
+            aria-controls="workspace-project-menu"
+            aria-haspopup="dialog"
             onClick={() => setDropdownOpen((v) => !v)}
             title={selectedProject?.root ?? selectedCwd ?? ""}
             style={{
@@ -1116,9 +1144,10 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               transition: "border-color 0.15s, background 0.15s",
             }}
           >
-            {selectedCwd ? (
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.7" style={{ flexShrink: 0, marginRight: 8 }} aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h5l3 3h6a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" /></svg>
+            {browseAllProjects ? <span style={{ flex: 1 }}>{t("workspace.allProjects")}</span> : selectedCwd ? (
               <PathLabel
-                text={displayCwd(selectedProject?.root ?? selectedCwd, homeDir)}
+                text={(selectedProject?.root ?? selectedCwd).split("/").filter(Boolean).pop() || "/"}
                 style={{
                   flex: 1,
                   fontFamily: "var(--font-mono)",
@@ -1155,7 +1184,12 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 }}
               />
             )}
+            <svg className="workspace-project-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
           </button>
+          <button type="button" className="workspace-add-project" title={t("workspace.addProject")} aria-label={t("workspace.addProject")} onClick={handleCustomPathClick}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M20 20H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z" /><path d="M12 10v7m-3.5-3.5h7" /></svg>
+          </button>
+          </div>
 
           <AnimatedDropdown
             open={dropdownOpen}
@@ -1172,8 +1206,9 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
               overflow: "hidden",
             }}
           >
-              {showProjectFilter && (
-                <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
+              <div id="workspace-project-menu" className="workspace-project-menu" role="dialog" aria-label={t("workspace.project")}>
+                <div className="workspace-project-filter">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
                   <input
                     value={projectFilter}
                     onChange={(e) => setProjectFilter(e.target.value)}
@@ -1184,6 +1219,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       }
                     }}
                      placeholder={t("sidebar.filterProjects")}
+                    aria-label={t("sidebar.filterProjects")}
                     autoFocus
                     style={{
                       width: "100%",
@@ -1199,13 +1235,18 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     }}
                   />
                 </div>
-              )}
+              <button type="button" className="workspace-project-option workspace-all-projects" aria-pressed={browseAllProjects} onClick={() => { setBrowseAllProjects(true); setProjectFilter(""); setDropdownOpen(false); }}>
+                <FolderIcon size={18} /><span>{t("workspace.allProjects")}</span>
+              </button>
               <div style={{ maxHeight: "min(50vh, 380px)", overflowY: "auto" }}>
                 {visibleProjects.map((project) => (
+                  <div key={project.key} className="workspace-project-option-row" data-selected={!browseAllProjects && project.key === selectedProject?.key}>
                   <button
-                    key={project.key}
+                    className="workspace-project-option"
+                    aria-pressed={!browseAllProjects && project.key === selectedProject?.key}
                     onClick={() => {
                       setSelectedCwd(project.root);
+                      setBrowseAllProjects(false);
                       setProjectFilter("");
                       setCustomPathOpen(false);
                       setCustomPathError(null);
@@ -1231,15 +1272,14 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     }}
                     title={project.root}
                   >
-                    {project.key === selectedProject?.key && (
-                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                        <polyline points="1.5 5 4 7.5 8.5 2.5" />
-                      </svg>
-                    )}
-                    {project.key !== selectedProject?.key && <span style={{ width: 10, flexShrink: 0 }} />}
-                    <PathLabel text={displayCwd(project.root, homeDir)} style={{ flex: 1 }} />
+                    <FolderIcon size={18} />
+                    <span className="workspace-project-name">{project.root.split("/").filter(Boolean).pop() || "/"}</span>
                     {showProjectActivity(projectActivity.get(project.key), t)}
                   </button>
+                  {onOpenProjectSettings && <button type="button" className="workspace-project-settings" aria-label={t("workspace.projectSettings", { project: project.root.split("/").filter(Boolean).pop() || "/" })} title={t("workspace.projectSettings", { project: project.root })} onClick={() => { setDropdownOpen(false); onOpenProjectSettings(project.root); }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 3 .6-2h4.8l.6 2 1.6.9 2-.5 2.4 4.2-1.4 1.5v1.8l1.4 1.5-2.4 4.2-2-.5-1.6.9-.6 2H9l-.6-2-1.6-.9-2 .5-2.4-4.2 1.4-1.5V9.1L2.4 7.6l2.4-4.2 2 .5L9 3Z" transform="translate(0 2)" /><circle cx="12" cy="12" r="3" /></svg>
+                  </button>}
+                  </div>
                 ))}
                 {visibleProjects.length === 0 && projectFilter.trim() && (
                    <div style={{ padding: "8px 10px", fontSize: 11, color: "var(--text-dim)" }}>{t("sidebar.noMatchingProjects")}</div>
@@ -1298,28 +1338,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 </svg>
                 <span>{t("sidebar.customPath")}</span>
               </button>
+              </div>
           </AnimatedDropdown>
         </div>
 
-        {sessionSearchOpen && (
-          <input
-            id="session-search-input"
-            type="search"
-            autoFocus
-            value={sessionSearchQuery}
-            maxLength={200}
-            aria-label={t("sidebar.searchSessions")}
-            placeholder={t("sidebar.searchSessions")}
-            onChange={(event) => setSessionSearchQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.stopPropagation();
-                setSessionSearchQuery("");
-              }
-            }}
-            className="mt-[6px] block h-[29px] w-full min-w-0 rounded-[7px] border border-border bg-bg px-[10px] text-xs text-text focus:outline-2 focus:outline-accent"
-          />
-        )}
+
 
         {/* Worktree switcher — shown only for git projects at a checkout top
             level (repo subdirs keep their own project identity, so switching
@@ -1636,7 +1659,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             </div>
           );
         })()}
-        {!sessionSearchOpen && inactiveWorktreeSelector && (
+        {!browseAllProjects && !sessionSearchOpen && inactiveWorktreeSelector && (
           <button
             type="button"
             aria-disabled="true"
@@ -1675,6 +1698,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       </div>
 
       {/* Session list */}
+      <div className="workspace-section-label workspace-threads-label">{t("workspace.threads")}<span>{sessionFamilies.length}</span></div>
       <SessionSearch open={sessionSearchOpen} query={sessionSearchQuery} refreshKey={sessionListVersion} selectedSessionId={selectedSessionId} onSelectSession={handleSelectSessionFromList}>
       <div
         ref={listScrollRef}
