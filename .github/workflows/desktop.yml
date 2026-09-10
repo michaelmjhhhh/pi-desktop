@@ -80,10 +80,18 @@ jobs:
           path: release-assets
       - name: Generate checksums
         working-directory: release-assets
-        run: sha256sum * > SHA256SUMS.txt
+        run: |
+          for file in *; do
+            normalized="${file// /.}"
+            if [[ "$file" != "$normalized" ]]; then
+              mv -- "$file" "$normalized"
+            fi
+          done
+          sha256sum * > SHA256SUMS.txt
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           prerelease_flag=()
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then
