@@ -80,7 +80,7 @@ test("reuses the ChatInput model selector with scoped models", () => {
   assert.match(source, /<ModelSelector[\s\S]*?options=\{modelSelectorOptions\}[\s\S]*?variant="field"/);
   assert.match(chatInputSource, /<ModelSelector[\s\S]*?options=\{modelOptions\}/);
   assert.match(modelSelectorSource, /filterModelOptions\(sortedOptions, filter\)/);
-  assert.match(modelSelectorSource, /modelsByProvider\.map/);
+  assert.match(modelSelectorSource, /providers\.map/);
   assert.match(modelSelectorSource, /event\.key !== "Escape" \|\| !open[\s\S]*?event\.preventDefault\(\)[\s\S]*?event\.stopPropagation\(\)/);
   assert.match(source, /agents\.modelUnavailable/);
   assert.doesNotMatch(source, /placeholder="provider\/modelId"/);

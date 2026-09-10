@@ -41,11 +41,12 @@ export async function collectLicenses(root, destination) {
     'Pi Desktop dependency notices\nIncludes installed runtime and build dependencies; not every listed package ships at runtime.\n\n'
     + [...records].sort(([a], [b]) => a.localeCompare(b)).map(([, text]) => text).join('\n\n' + '='.repeat(80) + '\n\n'));
   await cp(join(root, 'licenses/NotoSansMono-OFL.txt'), join(destination, 'NotoSansMono-OFL.txt'));
+  await cp(join(root, 'licenses/JetBrainsMono-OFL.txt'), join(destination, 'JetBrainsMono-OFL.txt'));
   // Resolving Electron also installs its platform distribution when necessary.
   createRequire(join(root, 'package.json'))('electron');
   await cp(join(root, 'node_modules/electron/dist/LICENSE'), join(destination, 'Electron-LICENSE.txt'));
   await cp(join(root, 'node_modules/electron/dist/LICENSES.chromium.html'), join(destination, 'LICENSES.chromium.html'));
-  console.log(`Preserved notices for ${records.size} dependency versions, Electron/Chromium, and Noto Sans Mono.`);
+  console.log(`Preserved notices for ${records.size} dependency versions, Electron/Chromium, Noto Sans Mono, and JetBrains Mono.`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

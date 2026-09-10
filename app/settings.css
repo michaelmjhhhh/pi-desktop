@@ -1218,3 +1218,45 @@
     }
   }
 }
+
+/* General preferences use the full dialog, with one scroll boundary. */
+.settings-dialog-surface { width: 1040px; height: min(780px, 88dvh); border-radius: 14px; }
+.settings-dialog-header { min-height: 60px; padding-left: 24px; }
+.settings-dialog-close { top: 15px; }
+.settings-section-tab { flex-basis: auto; width: auto; padding: 0 14px; gap: 8px; }
+.settings-general {
+  max-width: none; height: 100%; padding: 28px;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-rows: auto auto 1fr; gap: 22px; align-content: start;
+}
+.settings-general-title { grid-column: 1 / -1; font-size: 20px; }
+.settings-general-section, .settings-general-section:first-of-type {
+  margin-top: 0; padding: 22px; border: 1px solid var(--border); border-radius: 12px; align-self: start;
+}
+.settings-general-section:nth-of-type(2) { grid-column: 2; grid-row: 2 / 4; }
+.settings-general-heading { margin-bottom: 18px; font-size: 13px; }
+.settings-theme-options, .settings-chat-options, .settings-language-options { max-width: none; }
+.settings-theme-options { gap: 6px; padding: 0; }
+.settings-chat-options { gap: 22px; }
+.settings-chat-switch-option { line-height: 1.7; }
+.settings-chat-switch-option > span { min-width: 0; }
+.settings-chat-switch-option .config-switch { flex-shrink: 0; }
+.settings-chat-range-option input { margin-top: 12px; }
+.settings-language-options { gap: 8px; }
+.settings-theme-option, .settings-language-option { border-radius: 8px; }
+@media (max-width: 820px) {
+  .settings-general { grid-template-columns: minmax(0, 1fr); display: flex; flex-direction: column; padding: 20px; gap: 18px; }
+  .settings-general-section { width: 100%; }
+  .settings-section-tab { padding: 0 9px; }
+}
+@media (max-width: 640px) {
+  .settings-dialog-surface { height: calc(100dvh - 12px); border-radius: 10px; }
+  .settings-dialog-header { padding-left: 16px; }
+  .settings-general { padding: 16px; }
+  .settings-general-section, .settings-general-section:first-of-type { padding: 16px; }
+  .settings-chat-range-header { gap: 4px; }
+}
+
+@media (min-width: 821px) {
+  .settings-dialog-surface[data-section="general"] { height: min(660px, 88dvh); }
+}

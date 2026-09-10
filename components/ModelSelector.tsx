@@ -1,5 +1,7 @@
 "use client";
 
+import { createPortal } from "react-dom";
+import { ProviderIcon } from "./ProviderIcon";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -25,7 +27,15 @@ interface ModelSelectorProps {
   placement?: "up" | "auto";
 }
 
-const MODEL_FILTER_THRESHOLD = 8;
+const providerLabel = (provider: string) => ({ "openai-codex": "Codex", openai: "OpenAI", deepseek: "DeepSeek", xai: "xAI", anthropic: "Anthropic", google: "Google" })[provider] ?? provider;
+const FAVORITES_KEY = "pi-model-favorites";
+const modelKey = (option: { provider: string; modelId: string }) => JSON.stringify([option.provider, option.modelId]);
+function readFavorites(): string[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(FAVORITES_KEY) ?? "[]");
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  } catch { return []; }
+}
 const MODEL_OPTION_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function compareModelOptions(a: ModelSelectorOption, b: ModelSelectorOption): number {
@@ -66,17 +76,28 @@ export function ModelSelector({
   const [open, setOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState<{ top: number; right: number; bottom: number; left: number; width: number } | null>(null);
   const [filter, setFilter] = useState("");
+  const [providerFilter, setProviderFilter] = useState("all");
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const providers = [...new Set(options.map((option) => option.provider))];
+  const toggleFavorite = (option: ModelSelectorOption) => {
+    const key = modelKey(option);
+    const current = readFavorites();
+    const next = current.includes(key) ? current.filter((item) => item !== key) : [...current, key];
+    if (providerFilter === "favorites" && current.includes(key)) panelRef.current?.querySelector("input")?.focus();
+    setFavorites(next);
+    try { localStorage.setItem(FAVORITES_KEY, JSON.stringify(next)); } catch { /* Selection remains available without storage. */ }
+  };
   const locked = disabled || busy;
   const sortedOptions = useMemo(() => [...options].sort(compareModelOptions), [options]);
-  const filteredOptions = filterModelOptions(sortedOptions, filter);
-  const showFilter = sortedOptions.length > MODEL_FILTER_THRESHOLD;
-  const modelsByProvider: { provider: string; options: ModelSelectorOption[] }[] = [];
+  const filteredOptions = filterModelOptions(sortedOptions, filter).filter((option) => (
+    providerFilter === "all" || (providerFilter === "favorites" ? favorites.includes(modelKey(option)) : option.provider === providerFilter)
+  ));
 
-  for (const option of filteredOptions) {
-    const group = modelsByProvider.find((item) => item.provider === option.provider);
-    if (group) group.options.push(option);
-    else modelsByProvider.push({ provider: option.provider, options: [option] });
-  }
+  const visibleOptions = [...filteredOptions].sort((a, b) => {
+    const rank = (option: ModelSelectorOption) => option.provider === value?.provider && option.modelId === value?.modelId
+      ? 2 : favorites.includes(modelKey(option)) ? 1 : 0;
+    return rank(b) - rank(a);
+  });
 
   const currentName = selectedLabel ?? (value
     ? sortedOptions.find((option) => option.modelId === value.modelId && option.provider === value.provider)?.name ?? value.modelId
@@ -101,6 +122,35 @@ export function ModelSelector({
     setOpen(false);
     setFilter("");
   }, [locked]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      setFilter("");
+      rootRef.current?.querySelector("button")?.focus();
+    };
+    document.addEventListener("keydown", handleEscape, true);
+    const updateAnchor = () => {
+      const rect = rootRef.current?.querySelector("button")?.getBoundingClientRect();
+      if (rect) setAnchorRect({ top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width });
+    };
+    const handleScroll = (event: Event) => {
+      if (!panelRef.current?.contains(event.target as Node)) updateAnchor();
+    };
+    window.addEventListener("resize", updateAnchor);
+    window.addEventListener("scroll", handleScroll, true);
+    window.visualViewport?.addEventListener("resize", updateAnchor);
+    return () => {
+      document.removeEventListener("keydown", handleEscape, true);
+      window.removeEventListener("resize", updateAnchor);
+      window.removeEventListener("scroll", handleScroll, true);
+      window.visualViewport?.removeEventListener("resize", updateAnchor);
+    };
+  }, [open]);
 
   const buttonStyle: CSSProperties = variant === "field"
     ? {
@@ -144,6 +194,7 @@ export function ModelSelector({
     const active = option.modelId === value?.modelId && option.provider === value?.provider;
     setOpen(false);
     setFilter("");
+    rootRef.current?.querySelector("button")?.focus();
     if (!active || isAutoSelection) onChange(option.provider, option.modelId);
   };
 
@@ -158,18 +209,21 @@ export function ModelSelector({
         event.stopPropagation();
         setFilter("");
         setOpen(false);
+        rootRef.current?.querySelector("button")?.focus();
       }}
     >
       <button
         type="button"
         aria-label={ariaLabel}
-        aria-haspopup="listbox"
+        aria-haspopup="dialog"
         aria-expanded={open}
         aria-busy={busy || undefined}
         disabled={locked}
         title={busy ? "Switching model" : locked ? currentName : sortedOptions.length > 0 || onClear ? "Change model" : "No available models"}
         style={buttonStyle}
         onClick={(event) => {
+          setFavorites(readFavorites());
+          setProviderFilter("all");
           const rect = event.currentTarget.getBoundingClientRect();
           setAnchorRect({ top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left, width: rect.width });
           setOpen((current) => {
@@ -197,17 +251,10 @@ export function ModelSelector({
             <path d="M21 12a9 9 0 1 1-2.64-6.36" />
           </svg>
         ) : (
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
-            <rect x="4" y="4" width="16" height="16" rx="2" />
-            <rect x="9" y="9" width="6" height="6" />
-            <line x1="9" y1="1" x2="9" y2="4" /><line x1="15" y1="1" x2="15" y2="4" />
-            <line x1="9" y1="20" x2="9" y2="23" /><line x1="15" y1="20" x2="15" y2="23" />
-            <line x1="20" y1="9" x2="23" y2="9" /><line x1="20" y1="14" x2="23" y2="14" />
-            <line x1="1" y1="9" x2="4" y2="9" /><line x1="1" y1="14" x2="4" y2="14" />
-          </svg>
+          <ProviderIcon id={value?.provider ?? ""} size={16} />
         )}
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</span>
-        {variant === "field" && (
+        {(
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, color: "var(--text-dim)" }}>
             <polyline points="6 9 12 15 18 9" />
           </svg>
@@ -217,115 +264,80 @@ export function ModelSelector({
       {open && anchorRect && (() => {
         const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
         const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-        const spaceAbove = anchorRect.top - 8;
-        const spaceBelow = viewportHeight - anchorRect.bottom - 8;
-        const openAbove = placement === "up" || spaceAbove > spaceBelow;
-        const maxHeight = Math.max(120, Math.min(openAbove ? spaceAbove : spaceBelow, viewportHeight * 0.6));
+        const spaceAbove = anchorRect.top - 14;
+        const spaceBelow = viewportHeight - anchorRect.bottom - 14;
+        const openAbove = placement === "up" ? spaceAbove >= 220 || spaceAbove > spaceBelow : spaceAbove > spaceBelow;
+        const maxHeight = Math.max(100, Math.min(openAbove ? spaceAbove : spaceBelow, 540));
+        const width = Math.min(460, viewportWidth - 16);
         const verticalPosition = openAbove
           ? { bottom: viewportHeight - anchorRect.top + 6 }
           : { top: anchorRect.bottom + 6 };
-        const horizontalPosition: CSSProperties = isMobile
-          ? { left: 8, right: 8, maxWidth: "calc(100vw - 16px)" }
-          : { left: anchorRect.left, width: "max-content", minWidth: anchorRect.width, maxWidth: Math.max(anchorRect.width, viewportWidth - anchorRect.left - 8) };
 
-        return (
+        return createPortal(
           <div
             ref={panelRef}
-            role="listbox"
-            aria-label={ariaLabel}
-            style={{
-              position: "fixed",
-              ...verticalPosition,
-              ...horizontalPosition,
-              zIndex: 500,
-              display: "flex",
-              flexDirection: "column",
-              maxHeight,
-              overflow: "hidden",
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-              background: "var(--bg)",
-              boxShadow: openAbove ? "0 -4px 16px rgba(0,0,0,0.10)" : "0 4px 16px rgba(0,0,0,0.10)",
+            role="dialog"
+            aria-label={t("modelPicker.title")}
+            className="model-picker"
+            style={{ position: "fixed", ...verticalPosition, left: Math.max(8, Math.min(anchorRect.left, viewportWidth - width - 8)), width, maxHeight, zIndex: 1500 }}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                event.stopPropagation();
+                setOpen(false);
+                setFilter("");
+                rootRef.current?.querySelector("button")?.focus();
+              }
+              if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                const choices = [...(panelRef.current?.querySelectorAll<HTMLButtonElement>("[data-model-choice]") ?? [])];
+                if (!choices.length) return;
+                event.preventDefault();
+                const index = choices.indexOf(document.activeElement as HTMLButtonElement);
+                choices[(index + (event.key === "ArrowDown" ? 1 : -1) + choices.length) % choices.length]?.focus();
+              }
             }}
           >
-            {showFilter && (
-              <div style={{ flexShrink: 0, padding: "6px 8px", borderBottom: "1px solid var(--border)" }}>
-                <input
-                  value={filter}
-                  onChange={(event) => setFilter(event.target.value)}
-                  placeholder={t("chat.filterModels")}
-                  aria-label={t("chat.filterModels")}
-                  autoFocus
-                  autoComplete="off"
-                  spellCheck={false}
-                  style={{
-                    boxSizing: "border-box",
-                    width: "100%",
-                    minWidth: isMobile ? 0 : 220,
-                    padding: "5px 8px",
-                    border: "1px solid var(--border)",
-                    borderRadius: 5,
-                    outline: "none",
-                    background: "var(--bg)",
-                    color: "var(--text)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 11,
-                  }}
-                />
+            <nav className="model-picker-providers" aria-label={t("modelPicker.providers")}>
+              <button type="button" title={t("modelPicker.all")} aria-label={t("modelPicker.all")} aria-pressed={providerFilter === "all"} onClick={() => setProviderFilter("all")}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
+              </button>
+              <button type="button" title={t("modelPicker.favorites")} aria-label={t("modelPicker.favorites")} aria-pressed={providerFilter === "favorites"} onClick={() => setProviderFilter("favorites")}><FavoriteIcon filled /></button>
+              <div className="model-picker-provider-divider" />
+              {providers.map((provider) => <button key={provider} type="button" title={providerLabel(provider)} aria-label={providerLabel(provider)} aria-pressed={providerFilter === provider} onClick={() => setProviderFilter(provider)}><ProviderIcon id={provider} size={22} /></button>)}
+            </nav>
+            <div className="model-picker-main">
+              <div className="model-picker-search">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></svg>
+                <input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={t("chat.filterModels")} aria-label={t("chat.filterModels")} autoFocus autoComplete="off" spellCheck={false} />
               </div>
-            )}
-            <div style={{ minHeight: 0, overflowY: "auto" }}>
-              {onClear && !filter.trim() && (
-                <ModelOptionButton active={!value} label={emptyLabel ?? "Default"} onClick={() => {
-                  setOpen(false);
-                  setFilter("");
-                  onClear();
-                }} />
-              )}
-              {modelsByProvider.length === 0 ? (
-                <div style={{ padding: "8px 12px", color: "var(--text-dim)", fontSize: 12, whiteSpace: "nowrap" }}>
-                  {filter.trim() ? t("chat.noMatchingModels") : "No available models"}
-                </div>
-              ) : modelsByProvider.map((group, index) => (
-                <div key={group.provider}>
-                  {modelsByProvider.length > 1 && (
-                    <div style={{ padding: "6px 12px 4px", borderTop: index > 0 || onClear ? "1px solid var(--border)" : "none", color: "var(--text-dim)", fontSize: 10, fontWeight: 600, letterSpacing: 0, textTransform: "uppercase" }}>
-                      {group.provider}
-                    </div>
-                  )}
-                  {group.options.map((option) => (
-                    <ModelOptionButton
-                      key={`${option.provider}:${option.modelId}`}
-                      active={option.modelId === value?.modelId && option.provider === value?.provider}
-                      label={option.name}
-                      onClick={() => choose(option)}
-                    />
-                  ))}
-                </div>
-              ))}
+              <div className="model-picker-heading"><span>{providerFilter === "all" ? t("modelPicker.all") : providerFilter === "favorites" ? t("modelPicker.favorites") : providerLabel(providerFilter)}</span><span>{filteredOptions.length}</span></div>
+              <div className="model-picker-list">
+                {onClear && !filter.trim() && providerFilter === "all" && (
+                  <button type="button" className="model-picker-default" data-model-choice aria-pressed={!value} onClick={() => { setOpen(false); setFilter(""); onClear(); rootRef.current?.querySelector("button")?.focus(); }}>{emptyLabel ?? "Default"}</button>
+                )}
+                {filteredOptions.length === 0 && <div className="model-picker-empty">{providerFilter === "favorites" && !filter.trim() ? t("modelPicker.noFavorites") : t("chat.noMatchingModels")}</div>}
+                {visibleOptions.map((option) => {
+                  const active = option.modelId === value?.modelId && option.provider === value?.provider;
+                  const favorite = favorites.includes(modelKey(option));
+                  return <div key={modelKey(option)} className="model-picker-row" data-active={active}>
+                    <button type="button" className="model-picker-choice" data-model-choice aria-pressed={active} onClick={() => choose(option)}>
+                      <span className="model-picker-name">{option.name || option.modelId}</span>
+                      <span className="model-picker-provider"><ProviderIcon id={option.provider} size={15} />{providerLabel(option.provider)}</span>
+                    </button>
+                    {active && <span className="model-picker-selected" aria-label={t("modelPicker.selected")}>✓</span>}
+                    <button type="button" className="model-picker-favorite" aria-label={t(favorite ? "modelPicker.unpin" : "modelPicker.pin", { model: `${option.name || option.modelId} (${providerLabel(option.provider)})` })} aria-pressed={favorite} onClick={() => toggleFavorite(option)}><FavoriteIcon filled={favorite} /></button>
+                  </div>;
+                })}
+              </div>
             </div>
-          </div>
+          </div>,
+          document.body,
         );
       })()}
     </div>
   );
 }
 
-function ModelOptionButton({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      role="option"
-      aria-selected={active}
-      onClick={onClick}
-      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 12px", border: "none", background: active ? "var(--bg-selected)" : "none", color: active ? "var(--text)" : "var(--text-muted)", cursor: "pointer", fontSize: 12, fontWeight: active ? 600 : 400, textAlign: "left", whiteSpace: "nowrap" }}
-      onMouseEnter={(event) => { if (!active) event.currentTarget.style.background = "var(--bg-hover)"; }}
-      onMouseLeave={(event) => { if (!active) event.currentTarget.style.background = "none"; }}
-    >
-      {active
-        ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden="true"><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
-        : <span style={{ width: 10, flexShrink: 0 }} />}
-      <span title={label} style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
-    </button>
-  );
+function FavoriteIcon({ filled = false }: { filled?: boolean }) {
+  return <svg width="18" height="18" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.6l6.2-.9L12 3Z" /></svg>;
 }

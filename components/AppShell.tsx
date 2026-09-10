@@ -112,6 +112,7 @@ export function AppShell() {
   const handleBackgroundTaskDone = useCallback(() => {
     if (soundEnabledRef.current) playDoneSound();
   }, [playDoneSound, soundEnabledRef]);
+  const [threadToolsOpen, setThreadToolsOpen] = useState(false);
   const [selectedSession, setSelectedSession] = useState<SessionInfo | null>(null);
   const [sessionCatalog, setSessionCatalog] = useState<SessionInfo[]>([]);
   const handleSessionsChange = useCallback((sessions: SessionInfo[]) => {
@@ -155,6 +156,7 @@ export function AppShell() {
     setSearchTarget((current) => current === target ? null : current);
   }, []);
   const [explorerRefreshKey, setExplorerRefreshKey] = useState(0);
+  const [settingsProjectCwd, setSettingsProjectCwd] = useState<string | null>(null);
   const [settingsSection, setSettingsSection] = useState<SettingsSection | null>(null);
   const [modelsRefreshKey, setModelsRefreshKey] = useState(0);
   const [projectTrust, setProjectTrust] = useState<ProjectTrustStatus | null>(null);
@@ -1176,6 +1178,7 @@ export function AppShell() {
         onSessionDeleted={handleSessionDeleted}
         selectedCwd={selectedSession?.cwd ?? newSessionCwd ?? null}
         onCwdChange={handleCwdChange}
+        onOpenProjectSettings={(cwd) => { setSettingsProjectCwd(cwd); setSettingsSection(getLastSettingsSection(cwd)); }}
         onOpenFile={handleOpenFile}
         onOpenTerminal={handleOpenTerminal}
         explorerRefreshKey={explorerRefreshKey}
@@ -1239,6 +1242,7 @@ export function AppShell() {
   const renderThemeButton = (mobile: boolean) => (
     <button
       ref={themeBtnRef}
+      className={mobile ? undefined : "workspace-icon-button"}
       type="button"
       onClick={() => toggleTopPanel("theme", mobile)}
       title={translate(themeLabelKey)}
@@ -1265,6 +1269,7 @@ export function AppShell() {
   const renderLanguageButton = (mobile: boolean) => (
     <button
       ref={languageBtnRef}
+      className={mobile ? undefined : "workspace-icon-button"}
       type="button"
       onClick={() => toggleTopPanel("language", mobile)}
       title={translate("common.language")}
@@ -1827,6 +1832,7 @@ export function AppShell() {
     return (
       <button
         type="button"
+        className={mobile ? undefined : "workspace-icon-button"}
         onClick={handleRightPanelToggle}
         disabled={covered}
         tabIndex={covered ? -1 : undefined}
@@ -1999,9 +2005,10 @@ export function AppShell() {
       {/* Center: chat */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
         {/* Top bar with sidebar toggle */}
-        <div ref={topBarRef} style={{ flexShrink: 0, background: "var(--bg-panel)" }}>
-        <div style={{ display: "flex", alignItems: "center", position: "relative", borderBottom: "1px solid var(--border)", height: "calc(36px + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}>
+        <div ref={topBarRef} className="workspace-header" style={{ flexShrink: 0, background: "var(--bg)" }}>
+        <div className="workspace-header-row" style={{ display: "flex", alignItems: "center", position: "relative", borderBottom: "1px solid var(--border)", height: "calc(36px + env(safe-area-inset-top))", paddingTop: "env(safe-area-inset-top)" }}>
           <button
+            className="workspace-icon-button"
             onClick={handleSidebarToggle}
              title={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
              aria-label={sidebarOpen ? translate("sidebar.hide") : translate("sidebar.show")}
@@ -2098,11 +2105,19 @@ export function AppShell() {
           )}
           {!isMobile && (
             <>
+              <div className="workspace-breadcrumb">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.7" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h5l3 3h6a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" /><path d="m10 10-3 3 3 3m4-6 3 3-3 3" /></svg>
+                <span title={activeCwd ?? undefined}>{activeCwdName ?? "Pi Desktop"}</span>
+                <span aria-hidden="true" className="breadcrumb-divider">/</span>
+                <strong title={selectedSession?.name ?? undefined}>{selectedSession?.name || translate(selectedSession ? "session.title" : "workspace.newThread")}</strong>
+              </div>
+              {renderProjectTrustWarning(false)}
+              <button type="button" className="workspace-tools-toggle" aria-expanded={threadToolsOpen} aria-controls="desktop-thread-tools" onClick={() => { setThreadToolsOpen((open) => !open); if (threadToolsOpen) setActiveTopPanel(null); }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 7h16M4 17h16" /><circle cx="9" cy="7" r="3" fill="var(--bg)" /><circle cx="15" cy="17" r="3" fill="var(--bg)" /></svg>
+                {translate("workspace.threadTools")}
+              </button>
               {renderThemeButton(false)}
               {renderLanguageButton(false)}
-              {renderProjectTrustWarning(false)}
-              {renderChatToolbarActions(false)}
-              {renderSessionStatsButton(false)}
             </>
           )}
           {!isMobile && renderMainFileToggle(false)}
@@ -2455,6 +2470,12 @@ export function AppShell() {
           )}
 
         </div>
+        {!isMobile && threadToolsOpen && (
+          <div id="desktop-thread-tools" className="workspace-thread-tools" role="toolbar" aria-label={translate("workspace.threadTools")}>
+            {renderChatToolbarActions(false)}
+            {renderSessionStatsButton(false)}
+          </div>
+        )}
         {isMobile && renderProjectTrustWarning(true)}
         </div>
 
@@ -2653,13 +2674,14 @@ export function AppShell() {
     </div>
     {settingsSection && (
       <SettingsPanel
-        cwd={projectTrustCwd}
-        sessionId={selectedSession?.id ?? null}
+        cwd={settingsProjectCwd ?? projectTrustCwd}
+        sessionId={settingsProjectCwd && settingsProjectCwd !== selectedSession?.cwd ? null : selectedSession?.id ?? null}
         initialSection={settingsSection}
         quoteSelectionEnabled={quoteSelectionEnabled}
         onQuoteSelectionChange={handleQuoteSelectionChange}
         onClose={() => {
           setSettingsSection(null);
+          setSettingsProjectCwd(null);
           setModelsRefreshKey((key) => key + 1);
         }}
         onSessionReloaded={() => setSessionKey((key) => key + 1)}
