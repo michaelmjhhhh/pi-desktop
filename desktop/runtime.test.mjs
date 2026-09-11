@@ -1,15 +1,40 @@
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
+import { promisify } from 'node:util';
 import { once } from 'node:events';
 import { existsSync } from 'node:fs';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { randomBytes, randomUUID } from 'node:crypto';
 import test from 'node:test';
 
-const stage = resolve('.desktop');
+const stage = resolve(process.env.PI_DESKTOP_RESOURCES || '.desktop');
 const node = process.platform === 'win32' ? join(stage, 'runtime/node.exe') : join(stage, 'runtime/bin/node');
+test('bundled npm installs a local package and npx runs it offline', {
+  skip: !existsSync(node) && 'Run npm run desktop:build first', timeout: 30000,
+}, async () => {
+  const home = await mkdtemp(join(tmpdir(), 'pi-desktop-npm-'));
+  const fixture = join(home, 'fixture');
+  const project = join(home, 'project');
+  const npmBin = join(stage, process.platform === 'win32' ? 'runtime/node_modules/npm/bin' : 'runtime/lib/node_modules/npm/bin');
+  const run = promisify(execFile);
+  const options = { timeout: 15000, cwd: project, env: { ...process.env,
+    PATH: `${dirname(node)}${delimiter}${process.env.PATH || ''}`,
+    npm_config_cache: join(home, 'cache'), npm_config_userconfig: join(home, 'npmrc') } };
+  try {
+    await mkdir(fixture);
+    await mkdir(project);
+    await writeFile(join(project, 'package.json'), JSON.stringify({ name: 'desktop-test', private: true }));
+    await writeFile(join(fixture, 'package.json'), JSON.stringify({ name: 'pi-packaging-probe', version: '1.0.0', bin: { 'pi-packaging-probe': 'index.cjs' } }));
+    await writeFile(join(fixture, 'index.cjs'), '#!/usr/bin/env node\nconsole.log("PI_NPX_OK")\n');
+    await run(node, [join(npmBin, 'npm-cli.js'), 'install', '--offline', '--ignore-scripts', '--no-audit', '--no-fund', fixture], options);
+    const { stdout } = await run(node, [join(npmBin, 'npx-cli.js'), '--offline', '--no', 'pi-packaging-probe'], options);
+    assert.match(stdout, /PI_NPX_OK/);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
 test('bundled backend authenticates requests, discovers local sessions, runs a terminal, and shuts down', {
   skip: !existsSync(node) && 'Run npm run desktop:build first', timeout: 60000,
 }, async () => {
@@ -41,6 +66,7 @@ test('bundled backend authenticates requests, discovers local sessions, runs a t
     });
     const origin = `http://127.0.0.1:${port}`;
     const request = (path, options = {}) => fetch(origin + path, {
+      signal: AbortSignal.timeout(15000),
       ...options, headers: { 'x-pi-desktop-token': token, origin, 'content-type': 'application/json', ...options.headers },
     });
     assert.equal((await fetch(origin + '/api/sessions')).status, 403);
