@@ -112,10 +112,14 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
 
   return (
     <div className="settings-general">
-      <h2 className="settings-general-title">{t("settings.general")}</h2>
+      <header className="settings-general-header">
+        <h2 className="settings-general-title">{t("settings.general")}</h2>
+        <p className="settings-general-description">{t("settings.generalDescription")}</p>
+      </header>
 
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("settings.appearance")}</h3>
+      <section className="settings-general-section" aria-labelledby="settings-appearance-heading">
+        <h3 id="settings-appearance-heading" className="settings-general-heading">{t("settings.appearance")}</h3>
+        <p className="settings-general-description">{t("settings.appearanceDescription")}</p>
         <div role="radiogroup" aria-label={t("settings.appearance")} className="settings-theme-options">
           {THEME_OPTIONS.map((option) => {
             const selected = preference === option.id;
@@ -132,19 +136,112 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
                   onChange={() => setThemePreference(option.id)}
                   className="sr-only"
                 />
-                <ThemeIcon preference={option.id} />
-                <span className="settings-theme-option-label">{t(option.label)}</span>
+                <span className="settings-theme-preview" data-theme={option.id} aria-hidden="true">
+                  <span className="settings-theme-preview-sidebar"><i /><i /><i /></span>
+                  <span className="settings-theme-preview-chat"><i /><i /><i /><span /></span>
+                </span>
+                <span className="settings-theme-option-caption">
+                  <ThemeIcon preference={option.id} size={15} />
+                  <span className="settings-theme-option-label">{t(option.label)}</span>
+                  <span className="settings-theme-selected" aria-hidden="true">
+                    {selected && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 4 4L19 6" /></svg>}
+                  </span>
+                </span>
               </label>
             );
           })}
         </div>
+        <div className="settings-preference-row settings-language-row">
+          <div className="settings-preference-copy">
+            <label htmlFor="settings-language">{t("common.language")}</label>
+            <p className="settings-general-description">{t("settings.languageDescription")}</p>
+          </div>
+          <select
+            id="settings-language"
+            value={locale}
+            onChange={(event) => setLocale(event.target.value as typeof locale)}
+            className="settings-language-select"
+          >
+            {supportedLocales.map((plugin) => <option key={plugin.id} value={plugin.id}>{plugin.label}</option>)}
+          </select>
+        </div>
       </section>
 
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("settings.chat")}</h3>
+      <section className="settings-general-section" aria-labelledby="settings-chat-heading">
+        <h3 id="settings-chat-heading" className="settings-general-heading">{t("settings.chat")}</h3>
+        <p className="settings-general-description">{t("settings.chatDescription")}</p>
         <div className="settings-chat-options">
+          <div className="settings-chat-option settings-chat-range-option">
+            <div className="settings-preference-copy">
+              <label htmlFor="settings-chat-content-width">{t("settings.chatContentWidth")}</label>
+              <p className="settings-general-description">{t("settings.chatContentWidthDescription")}</p>
+            </div>
+            <div className="settings-chat-range-control">
+              <div className="settings-chat-range-header">
+                <output htmlFor="settings-chat-content-width">{chatContentWidth}px</output>
+                <ConfigButton
+                  variant="ghost"
+                  size="small"
+                  className="settings-chat-reset"
+                  title={t("settings.resetChatContentWidth")}
+                  aria-label={t("settings.resetChatContentWidth")}
+                  disabled={chatContentWidth === CHAT_CONTENT_WIDTH_DEFAULT}
+                  onClick={() => setChatContentWidth(CHAT_CONTENT_WIDTH_DEFAULT)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5" />
+                  </svg>
+                </ConfigButton>
+              </div>
+              <input
+                id="settings-chat-content-width"
+                type="range"
+                min={CHAT_CONTENT_WIDTH_MIN}
+                max={CHAT_CONTENT_WIDTH_MAX}
+                step={10}
+                value={chatContentWidth}
+                onChange={(event) => setChatContentWidth(Number(event.target.value))}
+              />
+            </div>
+          </div>
+          <div className="settings-chat-option settings-chat-range-option">
+            <div className="settings-preference-copy">
+              <label htmlFor="settings-chat-content-font-size">{t("settings.chatContentFontSize")}</label>
+              <p className="settings-general-description">{t("settings.chatContentFontSizeDescription")}</p>
+            </div>
+            <div className="settings-chat-range-control">
+              <div className="settings-chat-range-header">
+                <output htmlFor="settings-chat-content-font-size">{fontSize}px</output>
+                <ConfigButton
+                  variant="ghost"
+                  size="small"
+                  className="settings-chat-reset"
+                  title={t("settings.resetChatContentFontSize")}
+                  aria-label={t("settings.resetChatContentFontSize")}
+                  disabled={fontSize === CHAT_CONTENT_FONT_SIZE_DEFAULT}
+                  onClick={() => setFontSize(CHAT_CONTENT_FONT_SIZE_DEFAULT)}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5" />
+                  </svg>
+                </ConfigButton>
+              </div>
+              <input
+                id="settings-chat-content-font-size"
+                type="range"
+                min={CHAT_CONTENT_FONT_SIZE_MIN}
+                max={CHAT_CONTENT_FONT_SIZE_MAX}
+                step={1}
+                value={fontSize}
+                onChange={(event) => setFontSize(Number(event.target.value))}
+              />
+            </div>
+          </div>
           <div className="settings-chat-option settings-chat-switch-option">
-            <span>{t("settings.thinkingExpandedDefault")}</span>
+            <div className="settings-preference-copy">
+              <span>{t("settings.thinkingExpandedDefault")}</span>
+              <p className="settings-general-description">{t("settings.thinkingDisplayDescription")}</p>
+            </div>
             <ConfigSwitch
               checked={thinkingExpanded}
               label={t("settings.thinkingExpandedDefault")}
@@ -154,64 +251,11 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
               }}
             />
           </div>
-          <div className="settings-chat-option settings-chat-range-option">
-            <div className="settings-chat-range-header">
-              <label htmlFor="settings-chat-content-width">{t("settings.chatContentWidth")}</label>
-              <output htmlFor="settings-chat-content-width">{chatContentWidth}px</output>
-              <ConfigButton
-                variant="ghost"
-                size="small"
-                className="settings-chat-reset"
-                title={t("settings.resetChatContentWidth")}
-                aria-label={t("settings.resetChatContentWidth")}
-                disabled={chatContentWidth === CHAT_CONTENT_WIDTH_DEFAULT}
-                onClick={() => setChatContentWidth(CHAT_CONTENT_WIDTH_DEFAULT)}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5" />
-                </svg>
-              </ConfigButton>
-            </div>
-            <input
-              id="settings-chat-content-width"
-              type="range"
-              min={CHAT_CONTENT_WIDTH_MIN}
-              max={CHAT_CONTENT_WIDTH_MAX}
-              step={10}
-              value={chatContentWidth}
-              onChange={(event) => setChatContentWidth(Number(event.target.value))}
-            />
-          </div>
-          <div className="settings-chat-option settings-chat-range-option">
-            <div className="settings-chat-range-header">
-              <label htmlFor="settings-chat-content-font-size">{t("settings.chatContentFontSize")}</label>
-              <output htmlFor="settings-chat-content-font-size">{fontSize}px</output>
-              <ConfigButton
-                variant="ghost"
-                size="small"
-                className="settings-chat-reset"
-                title={t("settings.resetChatContentFontSize")}
-                aria-label={t("settings.resetChatContentFontSize")}
-                disabled={fontSize === CHAT_CONTENT_FONT_SIZE_DEFAULT}
-                onClick={() => setFontSize(CHAT_CONTENT_FONT_SIZE_DEFAULT)}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8M3 3v5h5" />
-                </svg>
-              </ConfigButton>
-            </div>
-            <input
-              id="settings-chat-content-font-size"
-              type="range"
-              min={CHAT_CONTENT_FONT_SIZE_MIN}
-              max={CHAT_CONTENT_FONT_SIZE_MAX}
-              step={1}
-              value={fontSize}
-              onChange={(event) => setFontSize(Number(event.target.value))}
-            />
-          </div>
           <div className="settings-chat-option settings-chat-switch-option">
-            <span>{t("settings.quoteSelection")}</span>
+            <div className="settings-preference-copy">
+              <span>{t("settings.quoteSelection")}</span>
+              <p className="settings-general-description">{t("settings.quoteSelectionDescription")}</p>
+            </div>
             <ConfigSwitch
               checked={quoteSelectionEnabled}
               label={t("settings.quoteSelection")}
@@ -222,8 +266,8 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
       </section>
 
       {shellSettings?.isWindows && (
-        <section className="settings-general-section">
-          <h3 className="settings-general-heading">{t("settings.shellTool")}</h3>
+        <section className="settings-general-section" aria-labelledby="settings-shell-heading">
+          <h3 id="settings-shell-heading" className="settings-general-heading">{t("settings.shellTool")}</h3>
           <p className="settings-general-description">{t("settings.shellToolDescription")}</p>
           <div className="settings-shell-option">
             <span>{t("settings.usePowerShell")}</span>
@@ -237,33 +281,6 @@ function GeneralSettings({ sessionId, onSessionReloaded, quoteSelectionEnabled, 
           {shellError && <p role="alert" className="settings-general-error">{shellError}</p>}
         </section>
       )}
-
-      <section className="settings-general-section">
-        <h3 className="settings-general-heading">{t("common.language")}</h3>
-        <div role="radiogroup" aria-label={t("common.language")} className="settings-language-options">
-          {supportedLocales.map((plugin) => {
-            const selected = locale === plugin.id;
-            return (
-              <button
-                key={plugin.id}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => setLocale(plugin.id as typeof locale)}
-                className="settings-language-option"
-              >
-                <span className="settings-language-radio">
-                  {selected && <span className="settings-language-radio-dot" />}
-                </span>
-                <span className="settings-language-label">{plugin.label}</span>
-                <span className="settings-language-code">{plugin.id}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-
     </div>
   );
 }
@@ -340,36 +357,45 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
               </option>
             ))}
           </select>
-          <nav aria-label={t("settings.title")} className="settings-section-tabs">
-            {sections.map((item) => {
-              const selected = section === item.id;
-              const disabled = item.requiresProject && !cwd;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  className="settings-section-tab"
-                  disabled={disabled}
-                  title={disabled ? t("settings.projectRequired") : item.label}
-                  aria-current={selected ? "page" : undefined}
-                  onClick={() => activateSection(item.id)}
-                >
-                  <SettingsSectionIcon section={item.id} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
           <button type="button" onClick={onClose} title={t("i18n.close")} aria-label={t("i18n.close")} className="config-close-button settings-dialog-close">×</button>
         </div>
 
-        <main className="settings-dialog-main">
-          {sectionHost("general", <GeneralSettings sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} />)}
-          {sectionHost("models", <ModelsConfig embedded onClose={onClose} />)}
-          {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} />)}
-          {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
-          {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
-        </main>
+        <div className="settings-dialog-body">
+          <nav aria-label={t("settings.title")} className="settings-navigation">
+            {[false, true].map((requiresProject) => (
+              <div key={String(requiresProject)} className="settings-navigation-group">
+                <p className="settings-navigation-label">{t(requiresProject ? "settings.project" : "settings.application")}</p>
+                {sections.filter((item) => item.requiresProject === requiresProject).map((item) => {
+                  const selected = section === item.id;
+                  const disabled = item.requiresProject && !cwd;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className="settings-navigation-item"
+                      disabled={disabled}
+                      title={disabled ? t("settings.projectRequired") : item.label}
+                      aria-current={selected ? "page" : undefined}
+                      onClick={() => activateSection(item.id)}
+                    >
+                      <SettingsSectionIcon section={item.id} />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+                {requiresProject && !cwd && <p className="settings-navigation-hint">{t("settings.projectRequired")}</p>}
+              </div>
+            ))}
+          </nav>
+
+          <main className="settings-dialog-main">
+            {sectionHost("general", <GeneralSettings sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} />)}
+            {sectionHost("models", <ModelsConfig embedded onClose={onClose} />)}
+            {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} />)}
+            {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
+            {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
+          </main>
+        </div>
       </div>
     </div>
   );

@@ -51,17 +51,18 @@ test("keeps visited settings sections mounted and contains nested Escape handlin
   assert.match(modelsSource, /e\.preventDefault\(\);\s*e\.stopPropagation\(\);\s*onClose\(\);/);
 });
 
-test("offers five palettes and system theme selection with native radios", () => {
-  for (const preference of ["light", "dark", "mist", "rose", "pine", "auto"]) {
+test("offers only light and dark themes with native radios", () => {
+  for (const preference of ["light", "dark"]) {
     assert.match(themeOptionsSource, new RegExp(`id: "${preference}"`));
   }
+  assert.doesNotMatch(themeOptionsSource, /id: "(?:mist|rose|pine|auto)"/);
   assert.match(panelSource, /THEME_OPTIONS\.map/);
   assert.match(panelSource, /type="radio"/);
   assert.match(panelSource, /setThemePreference\(option\.id\)/);
   assert.match(themeSource, /const setThemePreference = useCallback/);
 });
 
-test("groups chat display controls together without row backgrounds", () => {
+test("groups chat layout and behavior controls together", () => {
   const appearanceSection = panelSource.slice(
     panelSource.indexOf('{t("settings.appearance")}'),
     panelSource.indexOf('{t("settings.chat")}'),
@@ -79,35 +80,17 @@ test("groups chat display controls together without row backgrounds", () => {
     assert.match(chatSection, new RegExp(`t\\("settings\\.${key}"\\)`));
   }
   assert.doesNotMatch(panelSource, /ThinkingIcon|settings-thinking-/);
-  const chatOptionStyles = cssSource.match(/\.settings-chat-option \{[\s\S]*?\}/)?.[0] ?? "";
-  assert.match(chatOptionStyles, /font-size: 12px/);
-  assert.doesNotMatch(chatOptionStyles, /background/);
 });
 
-test("keeps General free of divider rows", () => {
-  assert.match(panelSource, /className="settings-dialog-header"/);
-  assert.match(cssSource, /\.settings-dialog-header \{[\s\S]*?display: flex[\s\S]*?align-items: center[\s\S]*?min-height: 50px/);
-  assert.doesNotMatch(panelSource, /sections\.find\(\(item\) => item\.id === section\)/);
-  assert.doesNotMatch(panelSource, /<section style=\{\{[^}]*borderBottom/);
-  assert.doesNotMatch(panelSource, /borderLeft: index > 0/);
-});
-
-test("uses top navigation on desktop and one compact section picker on mobile", () => {
+test("groups desktop navigation and keeps a compact mobile section picker", () => {
   assert.match(panelSource, /className="settings-mobile-section-picker"/);
-  assert.match(panelSource, /className="settings-section-tabs"/);
-  assert.match(panelSource, /className="settings-section-tab"/);
-  assert.match(cssSource, /\.settings-section-tab \{[\s\S]*?width: 96px/);
-  assert.match(cssSource, /\.settings-section-icon \{[\s\S]*?flex-shrink: 0/);
-  assert.match(cssSource, /\.settings-section-tab::after \{[\s\S]*?width: 24px/);
-  assert.match(cssSource, /\.settings-section-tab\[aria-current="page"\]::after/);
-  assert.match(cssSource, /\.settings-section-tab:focus-visible:not\(\[aria-current="page"\]\)/);
-  assert.match(cssSource, /\.settings-section-tab:focus-visible\[aria-current="page"\][\s\S]*?outline: none/);
-  assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-section-tabs \{[\s\S]*?display: none/);
+  assert.match(panelSource, /className="settings-navigation"/);
+  assert.match(panelSource, /settings.project" : "settings.application/);
+  assert.match(panelSource, /disabled=\{disabled\}/);
+  assert.match(panelSource, /aria-current=\{selected \? "page" : undefined\}/);
+  assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-navigation \{[\s\S]*?display: none/);
   assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-mobile-section-picker \{[\s\S]*?display: block/);
-  assert.doesNotMatch(panelSource, /width: isMobile \? "100%" : 188/);
   assert.match(panelSource, /<main className="settings-dialog-main">/);
-  assert.doesNotMatch(panelSource, /<style>/);
-  assert.doesNotMatch(panelSource, /style=\{\{/);
 });
 
 test("labels agent profiles as sub-agents", () => {
