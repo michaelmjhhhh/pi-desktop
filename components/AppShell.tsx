@@ -421,7 +421,9 @@ export function AppShell() {
     const trigger = activeTopPanel === "theme" ? themeBtnRef.current : languageBtnRef.current;
     if (!menu || !trigger) return;
     const items = Array.from(menu.querySelectorAll<HTMLButtonElement>("[role=menuitemradio]"));
-    (items.find((item) => item.getAttribute("aria-checked") === "true") ?? items[0])?.focus();
+    if (!menu.contains(document.activeElement)) {
+      (items.find((item) => item.getAttribute("aria-checked") === "true") ?? items[0])?.focus();
+    }
 
     const dismissOutside = (event: Event) => {
       if (event.composedPath().includes(menu) || event.composedPath().includes(trigger)) return;

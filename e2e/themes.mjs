@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { checkChatAppearanceReset } from "./chat-appearance.mjs";
 
 const base = process.env.E2E_BASE_URL || "http://127.0.0.1:30141";
 const artifacts = fileURLToPath(new URL("../test-results/themes/", import.meta.url));
-const themes = ["light", "dark", "mist", "rose", "pine", "auto"];
-const labels = ["Light", "Dark", "Mist", "Rose", "Pine", "System"];
+const themes = ["light", "dark"];
+const labels = ["Light", "Dark"];
 await mkdir(artifacts, { recursive: true });
-const browser = await chromium.launch();
+const browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
 
 function contrast(a, b) {
   const luminance = (hex) => {
@@ -36,20 +37,21 @@ try {
     await page.getByText("No sessions found", { exact: true }).waitFor({ state: "attached" });
     const openSettings = async () => {
       const sidebar = page.getByRole("button", { name: "Show sidebar", exact: true });
-      if (width <= 640) await sidebar.waitFor();
+      if (width <= 640) await page.getByRole("button", { name: /^(Show|Hide) sidebar$/ }).waitFor();
       if (await sidebar.isVisible()) await sidebar.click();
       await page.getByRole("button", { name: "Settings", exact: true }).click();
     };
     const expectTheme = async (theme) => {
       await page.waitForFunction((value) => document.documentElement.dataset.theme === value, theme);
-      assert.equal(await page.locator("html").evaluate((root) => root.classList.contains("dark")), theme === "dark" || theme === "pine");
-      assert.equal(await page.locator("html").evaluate((root) => getComputedStyle(root).colorScheme), theme === "dark" || theme === "pine" ? "dark" : "light");
+      assert.equal(await page.locator("html").evaluate((root) => root.classList.contains("dark")), theme === "dark");
+      assert.equal(await page.locator("html").evaluate((root) => getComputedStyle(root).colorScheme), theme === "dark" ? "dark" : "light");
     };
     await openSettings();
+    assert.equal(await page.getByRole("radio").count(), 2);
     for (const [index, theme] of themes.entries()) {
       const radio = page.getByRole("radio", { name: labels[index], exact: true });
       await radio.locator("..").click();
-      await expectTheme(theme === "auto" ? "light" : theme);
+      await expectTheme(theme);
       assert.equal(await radio.isChecked(), true);
       assert.equal(await page.evaluate(() => localStorage.getItem("pi-theme")), theme);
       const colors = await page.locator("html").evaluate((root) => {
@@ -72,15 +74,56 @@ try {
       })), true, `Theme labels must fit at ${width}px`);
       await page.screenshot({ path: `${artifacts}/${theme}-${width}.png`, animations: "disabled" });
       await page.reload();
-      await expectTheme(theme === "auto" ? "light" : theme);
+      await expectTheme(theme);
       await openSettings();
       assert.equal(await radio.isChecked(), true, "Selection must survive refresh");
     }
+    await checkChatAppearanceReset(page);
+    for (const label of ["Expand thinking blocks by default", "Show actions for selected text"]) {
+      const toggle = page.getByRole("switch", { name: label, exact: true });
+      const before = await toggle.getAttribute("aria-checked");
+      await toggle.click();
+      await page.reload();
+      await openSettings();
+      await page.getByRole("switch", { name: label, exact: true, checked: before !== "true" }).waitFor();
+    }
+    for (const [locale, heading] of [["zh-CN", "常规"], ["zh-TW", "一般"], ["en", "General"]]) {
+      await page.locator("#settings-language").selectOption(locale);
+      await page.getByRole("heading", { name: heading, exact: true }).waitFor();
+      assert.equal(await page.getByRole("radio").count(), 2);
+    }
+    const navigateSettings = async (section, label) => {
+      if (width <= 640) await page.locator(".settings-mobile-section-picker").selectOption(section);
+      else await page.getByRole("navigation", { name: "Settings", exact: true }).getByRole("button", { name: label, exact: true }).click();
+    };
+    await navigateSettings("models", "Models");
+    assert.equal(await page.locator(".settings-section-host:not([hidden]) .config-panel-root").count(), 1);
+    await page.keyboard.press("Escape");
+    await openSettings();
+    assert.equal(await page.locator(".settings-dialog-surface").getAttribute("data-section"), "models");
+    await navigateSettings("general", "General");
+    assert.equal(await page.getByRole("slider", { name: "Chat font size", exact: true }).inputValue(), "14");
+    if (width > 640) {
+      assert.equal(await page.locator(".settings-navigation-item:disabled").count(), 3);
+    } else {
+      assert.equal(await page.locator(".settings-mobile-section-picker option:disabled").count(), 3);
+    }
+    const previousHeight = 900;
+    await page.setViewportSize({ width, height: 568 });
+    const lastToggle = page.getByRole("switch", { name: "Show actions for selected text", exact: true });
+    await lastToggle.scrollIntoViewIfNeeded();
+    assert.equal(await lastToggle.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return el.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+    }), true, "The final setting must be reachable in a short viewport");
+    assert.equal(await page.locator(".settings-general").evaluate((el) => el.scrollWidth <= el.clientWidth), true);
+    await page.screenshot({ path: `${artifacts}/settings-short-${width}.png`, animations: "disabled" });
+    await page.setViewportSize({ width, height: previousHeight });
+    await page.locator(".settings-general").evaluate((el) => { el.scrollTop = 0; });
     await page.emulateMedia({ colorScheme: "dark" });
     await expectTheme("dark");
-    await page.getByRole("radio", { name: "Pine", exact: true }).locator("..").click();
     await page.emulateMedia({ colorScheme: "light" });
-    await expectTheme("pine");
+    await expectTheme("dark");
     const light = page.getByRole("radio", { name: "Light", exact: true });
     await light.focus();
     await light.press("ArrowRight");
@@ -109,17 +152,17 @@ try {
       assert.equal(await themeButton.getAttribute("aria-expanded"), "true");
       assert.deepEqual(await menu.getByRole("menuitemradio").allTextContents(), labels);
       assert.equal(await menu.getByRole("menuitemradio", { checked: true }).count(), 1);
-      assert.equal(await menu.locator("svg").count(), 6);
+      assert.equal(await menu.locator("svg").count(), 2);
       const bounds = await menu.boundingBox();
       assert.ok(bounds.x >= 0 && bounds.x + bounds.width <= width, "Menu must fit the viewport");
       await menu.getByRole("menuitemradio", { name: labels[index], exact: true }).click();
-      await expectTheme(theme === "auto" ? "light" : theme);
+      await expectTheme(theme);
       await menu.waitFor({ state: "detached" });
       assert.equal(await page.evaluate(() => localStorage.getItem("pi-theme")), theme);
       assert.equal(await themeButton.evaluate((button) => button === document.activeElement), true);
     }
     await openThemeMenu();
-    assert.equal(await menu.getByRole("menuitemradio", { name: "System", exact: true }).evaluate((button) => button === document.activeElement), true);
+    assert.equal(await menu.getByRole("menuitemradio", { name: "Dark", exact: true }).evaluate((button) => button === document.activeElement), true);
     await page.keyboard.press("Home");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.press("Enter");
@@ -128,7 +171,7 @@ try {
     await page.keyboard.press("End");
     await page.keyboard.press("ArrowUp");
     await page.keyboard.press("Enter");
-    await expectTheme("pine");
+    await expectTheme("light");
     await openThemeMenu();
     await page.screenshot({ path: `${artifacts}/menu-${width}.png`, animations: "disabled" });
     await page.evaluate(() => {
@@ -164,14 +207,18 @@ try {
       await page.waitForFunction(() => !document.getAnimations().some((animation) => animation.playState === "running"));
       await page.reload();
       await expectTheme("dark");
-      for (const key of ["bg", "bg-panel", "bg-hover", "bg-selected", "border", "text", "text-muted", "text-dim", "user-bg", "tool-bg"]) {
-        const hex = await page.locator("html").evaluate((root, token) => getComputedStyle(root).getPropertyValue(`--${token}`).trim(), key);
-        const channels = hex.slice(1).match(hex.length === 4 ? /./g : /../g);
-        assert.equal(new Set(channels).size, 1, `Dark ${key} must remain neutral gray`);
+      for (const [stored, expected] of [["mist", "light"], ["rose", "light"], ["pine", "dark"], ["auto", "light"]]) {
+        await page.evaluate((value) => localStorage.setItem("pi-theme", value), stored);
+        await page.reload();
+        await expectTheme(expected);
+        assert.equal(await page.evaluate(() => localStorage.getItem("pi-theme")), expected);
+        await openSettings();
+        assert.equal(await page.getByRole("radio", { name: expected === "dark" ? "Dark" : "Light", exact: true }).isChecked(), true);
+        await page.keyboard.press("Escape");
       }
     }
     assert.deepEqual(errors, []);
-    console.log(`PASS ${width}px: palettes, contrast, persistence, system preference, menu selection, keyboard navigation, dismissal, icons`);
+    console.log(`PASS ${width}px: themes, contrast, persistence, fixed preference, menu selection, keyboard navigation, dismissal, icons`);
     await context.close();
   }
 } finally {
