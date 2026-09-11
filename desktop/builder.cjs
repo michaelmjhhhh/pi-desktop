@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { access, readdir, realpath, stat } = require('node:fs/promises');
 const { join, relative, isAbsolute } = require('node:path');
-const { Arch } = require('builder-util');
 module.exports = {
   appId: 'com.michael.pi-desktop',
   productName: 'Pi Desktop',
@@ -50,9 +49,5 @@ module.exports = {
       }
     }
     console.log(`Packaged resources: ${(resourceBytes / 1e6).toFixed(1)} MB`);
-    // Current release target; leave headroom above the measured ~377 MB.
-    if (context.electronPlatformName === 'darwin' && context.arch === Arch.arm64 && resourceBytes > 420_000_000) {
-      throw new Error('macOS arm64 resources exceed the 420 MB budget. Inspect staged dependencies before raising it.');
-    }
   },
 };

@@ -29,8 +29,7 @@ extension documentation, declarations and licenses remain bundled.
 JavaScript/TypeScript source maps are archived under `.desktop/debug` with the
 Next build ID; retain this directory with each release for debugging. Release CI
 stores it as a separate artifact for 90 days, not in the downloadable app.
-macOS arm64 packaging checks a 420 MB budget for application resources (excluding
-Electron frameworks and the final signature).
+Packaging logs the application resource size without enforcing a size limit.
 
 To test a packaged backend, set `PI_DESKTOP_RESOURCES` to the app's
 `Contents/Resources` directory and run `npm run test:desktop`.
