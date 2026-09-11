@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { access, readdir, realpath } = require('node:fs/promises');
+const { access, readdir, realpath, stat } = require('node:fs/promises');
 const { join, relative, isAbsolute } = require('node:path');
+const { Arch } = require('builder-util');
 module.exports = {
   appId: 'com.michael.pi-desktop',
   productName: 'Pi Desktop',
@@ -38,13 +39,20 @@ module.exports = {
       await access(join(resources, file));
     }
     const resourceRoot = await realpath(resources);
+    let resourceBytes = 0;
     for (const entry of await readdir(resources, { recursive: true, withFileTypes: true })) {
+      if (entry.isFile()) resourceBytes += (await stat(join(entry.parentPath, entry.name))).size;
       if (!entry.isSymbolicLink()) continue;
       const target = await realpath(join(entry.parentPath, entry.name));
       const pathFromResources = relative(resourceRoot, target);
       if (pathFromResources.startsWith('..') || isAbsolute(pathFromResources)) {
         throw new Error(`Packaged symlink escapes application resources: ${entry.name}`);
       }
+    }
+    console.log(`Packaged resources: ${(resourceBytes / 1e6).toFixed(1)} MB`);
+    // Current release target; leave headroom above the measured ~377 MB.
+    if (context.electronPlatformName === 'darwin' && context.arch === Arch.arm64 && resourceBytes > 420_000_000) {
+      throw new Error('macOS arm64 resources exceed the 420 MB budget. Inspect staged dependencies before raising it.');
     }
   },
 };

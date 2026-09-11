@@ -1,4 +1,5 @@
 import { collectLicenses } from './collect-licenses.mjs';
+import { pruneDesktop } from './prune-desktop.mjs';
 import { cp, mkdir, readFile, rm, writeFile, chmod } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -68,4 +69,12 @@ if (platform === 'darwin') {
   }
 }
 await collectLicenses(root, join(stage, 'licenses'));
+const saved = await pruneDesktop(stage, platform, arch);
+const { version } = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+const report = { version, platform, arch, nodeVersion,
+  buildId: (await readFile(join(server, '.next/BUILD_ID'), 'utf8')).trim(),
+  savedBytes: saved };
+await mkdir(join(stage, 'debug'), { recursive: true });
+await writeFile(join(stage, 'debug/build.json'), JSON.stringify(report, null, 2) + '\n');
+console.log(`Removed ${(Object.values(saved).reduce((a, b) => a + b, 0) / 1e6).toFixed(1)} MB from shipping resources. Debug maps: .desktop/debug.`);
 console.log(`Desktop resources prepared for ${platform}-${arch}. Run npm run desktop:pack or npm run desktop:dist.`);
