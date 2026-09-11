@@ -18,6 +18,10 @@ module.exports = {
     { from: 'NOTICE', to: 'NOTICE' },
   ],
   asar: true,
+  // Include both separators: macOS uses .lproj names, other platforms use .pak.
+  electronLanguages: ['en-US', 'en-GB', 'zh-CN', 'zh-TW',
+    ...['en', 'en_GB', 'zh_CN', 'zh_TW'].flatMap(locale =>
+      ['', '_FEMININE', '_MASCULINE', '_NEUTER'].map(suffix => locale + suffix))],
   npmRebuild: false,
   // Backend dependencies are already traced into extraResources/server.
   nodeGypRebuild: false,
