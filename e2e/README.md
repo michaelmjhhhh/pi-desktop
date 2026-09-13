@@ -24,13 +24,13 @@ Coverage:
 
 - A 5,000-message session opens with exactly the last 50 entries, bounded
   detail/context responses, and no browser errors.
-- Desktop and mobile scrolling load two consecutive older pages. Each response
+- Wide and compact desktop scrolling load two consecutive older pages. Each response
   has the expected IDs, no gaps or duplicates, and the messages appear once in
   the chat. A small session checks pagination through the root.
 - Branch context follows the selected leaf and excludes the other branch.
 - Markdown, code blocks, and real tool-call/tool-result blocks render.
 - Chat width and font size persist, existing drafts resize, and short settings
-  panels keep every language option reachable on desktop and mobile.
+  panels keep every language option reachable on wide and compact desktop windows.
 - Unknown sessions and paths outside the fixture project are rejected.
 - A local extension checks dialog keyboard navigation, Esc cancellation,
   collapse/expand draft preservation, countdown display, and server-side expiry.
@@ -39,3 +39,21 @@ Model prompts, live model streaming, and agent execution are outside this suite.
 Failures save a screenshot, Playwright trace, and server log under
 `test-results/e2e/`; CI uploads that directory. Open a trace with
 `npx playwright show-trace test-results/e2e/trace.zip`.
+
+## Electron regression
+
+`npm run desktop:build` stages a production backend without touching `.next`.
+`npm run test:desktop` checks the bundled runtime and authenticated backend.
+`npm run test:desktop:ui` launches Electron with temporary sessions, extensions,
+and user data. It checks internal history isolation, OS external-link routing,
+copying and pasting a message, notification permission and attention click routing, native
+terminal streaming, automatic session discovery, minimum-window zoom, keyboard
+menus, settings scrolling, pointer/keyboard panel resizing, and restart persistence.
+Clipboard contents are restored after the copy probe. Notification banner display
+is controlled by OS settings; attention delivery is captured at the notification
+constructor boundary so CI can verify callback behavior deterministically.
+
+The macOS PR job runs these checks for staging and again for `desktop:pack`.
+Set `PI_DESKTOP_EXECUTABLE` to the packaged executable to run the same UI suite;
+set `PI_DESKTOP_RESOURCES` to its resources directory for packaged backend checks.
+Failures save desktop screenshots, backend logs and the error under `test-results/desktop/`.

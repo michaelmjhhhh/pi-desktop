@@ -82,14 +82,11 @@ test("groups chat layout and behavior controls together", () => {
   assert.doesNotMatch(panelSource, /ThinkingIcon|settings-thinking-/);
 });
 
-test("groups desktop navigation and keeps a compact mobile section picker", () => {
-  assert.match(panelSource, /className="settings-mobile-section-picker"/);
+test("groups desktop navigation", () => {
   assert.match(panelSource, /className="settings-navigation"/);
   assert.match(panelSource, /settings.project" : "settings.application/);
   assert.match(panelSource, /disabled=\{disabled\}/);
   assert.match(panelSource, /aria-current=\{selected \? "page" : undefined\}/);
-  assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-navigation \{[\s\S]*?display: none/);
-  assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.settings-mobile-section-picker \{[\s\S]*?display: block/);
   assert.match(panelSource, /<main className="settings-dialog-main">/);
 });
 

@@ -10,7 +10,9 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
-assert.ok(!existsSync(join(root, ".next/dev/lock")), "Run in a checkout without an active dev server");
+const mode = process.env.E2E_SERVER_MODE || "dev";
+assert.ok(mode === "dev" || mode === "start", "E2E_SERVER_MODE must be dev or start");
+assert.ok(mode !== "dev" || !existsSync(join(root, ".next/dev/lock")), "Run in a checkout without an active dev server");
 const artifacts = mkdtempSync(join(tmpdir(), "pi-web-terminal-e2e-"));
 console.log(`Artifacts: ${artifacts}`);
 const agentDir = join(artifacts, "agent");
@@ -40,9 +42,9 @@ const port = probe.address().port;
 await new Promise((resolve) => probe.close(resolve));
 const base = `http://127.0.0.1:${port}`;
 const log = createWriteStream(join(artifacts, "server.log"));
-const server = spawn(process.execPath, [join(root, "node_modules/next/dist/bin/next"), "dev", "-H", "127.0.0.1", "-p", String(port)], {
+const server = spawn(process.execPath, [join(root, "node_modules/next/dist/bin/next"), mode, "-H", "127.0.0.1", "-p", String(port)], {
   cwd: root,
-  env: { ...process.env, PI_CODING_AGENT_DIR: agentDir, PI_WEB_PASSWORD: "", NEXT_TELEMETRY_DISABLED: "1", HISTFILE: process.platform === "win32" ? "NUL" : "/dev/null", BASH_SILENCE_DEPRECATION_WARNING: "1", SHELL: process.platform === "win32" ? process.env.SHELL : "/bin/bash" },
+  env: { ...process.env, PI_CODING_AGENT_DIR: agentDir, NEXT_TELEMETRY_DISABLED: "1", HISTFILE: process.platform === "win32" ? "NUL" : "/dev/null", BASH_SILENCE_DEPRECATION_WARNING: "1", SHELL: process.platform === "win32" ? process.env.SHELL : "/bin/bash" },
   stdio: ["ignore", "pipe", "pipe"],
 });
 server.stdout.pipe(log, { end: false });
@@ -56,8 +58,8 @@ try {
     assert.ok(i < 120 && server.exitCode === null, "Server did not become ready");
     await delay(500);
   }
-  browser = await chromium.launch();
-  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+  browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 900, height: 700 }]) {
     const context = await browser.newContext({ viewport, locale: "en-US" });
     const page = await context.newPage();
     page.setDefaultTimeout(30_000);
@@ -101,6 +103,7 @@ try {
 
       await hidePanel();
       await showSidebar();
+      await page.getByRole("button", { name: "Explorer", exact: true }).click();
       await page.getByText("note.txt", { exact: true }).click();
       await page.getByText("File viewer fixture", { exact: true }).waitFor();
       assert.equal(await page.locator(".terminal-panel").count(), 1);

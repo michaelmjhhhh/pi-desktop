@@ -51,7 +51,7 @@ test('bundled backend authenticates requests, discovers local sessions, runs a t
   let logs = '';
   const child = spawn(node, [resolve('desktop/server.cjs')], {
     env: { ...process.env, PI_DESKTOP_SERVER_ROOT: join(stage, 'server'), PI_DESKTOP_TOKEN: token,
-      PI_CODING_AGENT_DIR: agentDir, PI_WEB_PASSWORD: '', NEXT_TELEMETRY_DISABLED: '1', NODE_ENV: 'production',
+      PI_CODING_AGENT_DIR: agentDir, NEXT_TELEMETRY_DISABLED: '1', NODE_ENV: 'production',
       SHELL: process.platform === 'win32' ? process.env.SHELL : '/bin/bash', HISTFILE: process.platform === 'win32' ? 'NUL' : '/dev/null' },
     stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
   });

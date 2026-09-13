@@ -7,7 +7,7 @@ const systemSource = await readFile(new URL("./SystemPromptPanel.tsx", import.me
 const appShellSource = await readFile(new URL("./AppShell.tsx", import.meta.url), "utf8");
 
 test("keeps System and Tools in separate adjacent toolbar actions", () => {
-  assert.match(appShellSource, /handleSystemInfoToggle\("system", mobile\)[\s\S]*?handleSystemInfoToggle\("tools", mobile\)/);
+  assert.match(appShellSource, /handleSystemInfoToggle\("system"\)[\s\S]*?handleSystemInfoToggle\("tools"\)/);
   assert.match(appShellSource, /activeTopPanel === "system"[\s\S]*?<SystemPromptPanel/);
   assert.match(appShellSource, /activeTopPanel === "tools"[\s\S]*?<ToolDefinitionsPanel/);
   assert.doesNotMatch(systemSource, /ToolEntry|tools/);
@@ -32,7 +32,7 @@ test("shows schema fields and metadata in the detail form", () => {
   assert.match(panelSource, /selectedTool\.promptGuidelines/);
 });
 
-test("preserves the two-column layout on narrow screens", () => {
+test("preserves two columns when desktop zoom narrows the viewport", () => {
   assert.match(
     panelSource,
     /@media \(max-width: 640px\)[\s\S]*?\.tool-definitions-panel \{[\s\S]*?grid-template-columns: 112px minmax\(0, 1fr\)/,

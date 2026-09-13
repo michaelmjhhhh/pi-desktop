@@ -45,8 +45,7 @@ function CatppuccinIcon({ name, size = 14 }: IconProps & { name: CatppuccinIconN
   const style = {
     width: size,
     height: size,
-    "--catppuccin-icon-light": `url(${CATPPUCCIN_ICONS_ROOT}/latte/${name}.svg)`,
-    "--catppuccin-icon-dark": `url(${CATPPUCCIN_ICONS_ROOT}/mocha/${name}.svg)`,
+    "--file-icon": `url(${CATPPUCCIN_ICONS_ROOT}/${name}.svg)`,
   } as CSSProperties;
 
   return (

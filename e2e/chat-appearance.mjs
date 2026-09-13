@@ -82,7 +82,7 @@ export async function checkChatAppearance(page) {
   assert.equal(await width.inputValue(), "2000");
   assert.equal(await fontSize.inputValue(), "18");
   await checkChatAppearanceReset(page);
-  for (const viewport of [{ width: 1280, height: 600 }, { width: 320, height: 568 }]) {
+  for (const viewport of [{ width: 1280, height: 600 }, { width: 900, height: 600 }]) {
     await page.setViewportSize(viewport);
     await page.locator(".settings-general").evaluate((el) => { el.scrollTop = el.scrollHeight; });
     await page.locator("#settings-language").scrollIntoViewIfNeeded();
@@ -93,8 +93,8 @@ export async function checkChatAppearance(page) {
   }
   await fontSize.press("Home");
   await closeSettings();
-  assert.equal(await font(textarea), "16px", "Mobile inputs retain the focus-zoom minimum");
-  await textarea.fill("A mobile draft wraps and resizes within the available space.");
+  assert.equal(await font(textarea), "12px", "Desktop inputs use the configured font size");
+  await textarea.fill("A desktop draft wraps and resizes within the available space.");
   await fittedHeight();
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   console.log("PASS: chat appearance persistence, typography, draft resizing, and short settings panels");

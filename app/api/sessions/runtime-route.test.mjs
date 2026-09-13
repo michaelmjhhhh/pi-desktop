@@ -139,11 +139,11 @@ test("session reads use the live SessionManager before requiring a JSONL path", 
 });
 
 test("live agent state is available before the session file is persisted", () => {
-  const liveLookup = stateRoute.indexOf("getRpcSession(id)");
+  const liveLookup = stateRoute.indexOf("readAgentState(id)");
   const pathLookup = stateRoute.indexOf("resolveSessionPath(id)");
   assert.ok(liveLookup >= 0);
   assert.ok(pathLookup > liveLookup);
-  assert.match(stateRoute, /if \(rpc\?\.isAlive\(\)\)/);
+  assert.match(stateRoute, /if \(snapshot\.running\)/);
 });
 
 test("deleting an intermediate subagent reparents both relation representations", async (t) => {

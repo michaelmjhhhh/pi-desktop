@@ -1,15 +1,20 @@
 import assert from 'node:assert/strict';
 import { _electron as electron } from 'playwright';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { extensionSource } from './extension-dialog.mjs';
+import { checkDesktopLayout } from './desktop-layout.mjs';
+import { checkDesktopShell, checkDesktopAttention } from './desktop-shell.mjs';
 
 const fixture = await mkdtemp(join(tmpdir(), 'pi-desktop-ui-'));
 const agentDir = join(fixture, 'agent');
 const project = join(fixture, 'Desktop test project');
 const sessions = join(agentDir, 'sessions', '--desktop-test--');
 await mkdir(project);
+await mkdir(join(agentDir, 'extensions'), { recursive: true });
+await writeFile(join(agentDir, 'extensions/desktop-dialog.js'), extensionSource);
 await mkdir(sessions, { recursive: true });
 const id = randomUUID();
 const timestamp = new Date().toISOString();
@@ -27,9 +32,12 @@ let application;
 try {
   application = await electron.launch(launchOptions);
   const page = await application.firstWindow({ timeout: 30000 });
+  page.setDefaultTimeout(15000);
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.waitForURL('http://pi-desktop.localhost/');
+  await page.evaluate(() => localStorage.setItem('pi-locale', 'en'));
+  await page.reload();
   await page.getByText('Desktop smoke test conversation', { exact: false }).first().waitFor({ timeout: 30000 });
   const api = await page.evaluate(async (cwd) => {
     const sessions = await fetch('/api/sessions').then((response) => response.json());
@@ -75,14 +83,30 @@ try {
   await page.getByText('New CLI session discovered automatically', { exact: false }).first().waitFor({ timeout: 50000 });
   await page.getByText('Desktop smoke test conversation', { exact: false }).first().click();
   await page.waitForFunction(() => document.querySelectorAll('textarea').length > 0);
+  await checkDesktopShell(application, page);
+  await checkDesktopAttention(page);
+  const layout = await checkDesktopLayout(application, page);
   assert.deepEqual(errors, []);
   await application.close();
   application = await electron.launch(launchOptions);
   const reopened = await application.firstWindow({ timeout: 30000 });
-  await reopened.waitForURL('http://pi-desktop.localhost/');
+  await reopened.waitForURL(url => url.origin === 'http://pi-desktop.localhost');
   await reopened.waitForLoadState('domcontentloaded');
   assert.equal(await reopened.evaluate(() => localStorage.getItem('desktop-persistence-test')), 'saved');
-  console.log('PASS: Electron UI, automatic session discovery, model API, native terminal, sandbox, no service worker, persistent settings, relaunch.');
+  await reopened.locator('textarea').last().waitFor();
+  assert.equal(await reopened.evaluate(() => localStorage.getItem('pi-theme')), 'dark');
+  assert.deepEqual(await reopened.evaluate(() => ({ sidebarWidth: localStorage.getItem('pi-sidebar-width'), rightPanelWidth: localStorage.getItem('pi-right-panel-width') })), layout);
+  assert.ok(reopened.url().includes(id), 'Selected session survives restart');
+  console.log('PASS: Electron UI, automatic session discovery, model API, native terminal, history isolation, external links, clipboard, notifications, minimum window/zoom, panel resizing, persistent settings, relaunch.');
+} catch (error) {
+  const artifacts = resolve('test-results/desktop');
+  await mkdir(artifacts, { recursive: true });
+  await writeFile(join(artifacts, 'error.txt'), String(error.stack || error));
+  await cp(join(fixture, 'profile/logs'), join(artifacts, 'logs'), { recursive: true }).catch(() => {});
+  for (const [index, page] of (application?.windows() || []).entries()) {
+    await page.screenshot({ path: join(artifacts, `window-${index}.png`) }).catch(() => {});
+  }
+  throw error;
 } finally {
   if (application) await application.close();
   await rm(fixture, { recursive: true, force: true });

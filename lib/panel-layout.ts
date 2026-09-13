@@ -1,4 +1,3 @@
-export const MOBILE_MAX_WIDTH = 640;
 export const SPLIT_PANEL_MIN_WIDTH = 960;
 
 export const SIDEBAR_DEFAULT_WIDTH = 260;
@@ -28,7 +27,6 @@ export function getSidebarMaxWidth(options: {
   rightPanelWidth: number;
 }): number {
   const { viewportWidth, rightPanelOpen, rightPanelWidth } = options;
-  if (viewportWidth <= MOBILE_MAX_WIDTH) return SIDEBAR_MAX_WIDTH;
 
   const compact = viewportWidth < SPLIT_PANEL_MIN_WIDTH;
   const chatWidth = compact ? COMPACT_CHAT_MIN_WIDTH : DESKTOP_CHAT_MIN_WIDTH;

@@ -83,10 +83,8 @@ export function createTerminal(cwd: string, cols: number, rows: number, id: stri
   } catch (error) {
     throw new Error(
       `Cannot load the node-pty native terminal module for ${process.platform}-${process.arch}. ` +
-      "The binary may be missing or incompatible. In the pi-web installation directory " +
-      "(the npx cache directory when using npx), run: npm rebuild node-pty --build-from-source --ignore-scripts=false --foreground-scripts. " +
-      "On Debian/Ubuntu, install build tools first: sudo apt-get install -y python3 build-essential. " +
-      `Then restart pi-web. Original error: ${error instanceof Error ? error.message : String(error)}`,
+      "The bundled binary may be missing or incompatible. Reinstall Pi Desktop for your OS and architecture. " +
+      `See Help → Open logs. Original error: ${error instanceof Error ? error.message : String(error)}`,
       { cause: error },
     );
   }

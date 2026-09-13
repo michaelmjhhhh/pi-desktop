@@ -26,7 +26,7 @@ function contrast(a, b) {
 }
 
 try {
-  for (const width of [1440, 390, 320]) {
+  for (const width of [1440, 900]) {
     const context = await browser.newContext({ viewport: { width, height: 900 }, locale: "en-US", colorScheme: "light", reducedMotion: "reduce" });
     const page = await context.newPage();
     const errors = [];
@@ -37,7 +37,6 @@ try {
     await page.getByText("No sessions found", { exact: true }).waitFor({ state: "attached" });
     const openSettings = async () => {
       const sidebar = page.getByRole("button", { name: "Show sidebar", exact: true });
-      if (width <= 640) await page.getByRole("button", { name: /^(Show|Hide) sidebar$/ }).waitFor();
       if (await sidebar.isVisible()) await sidebar.click();
       await page.getByRole("button", { name: "Settings", exact: true }).click();
     };
@@ -92,9 +91,8 @@ try {
       await page.getByRole("heading", { name: heading, exact: true }).waitFor();
       assert.equal(await page.getByRole("radio").count(), 2);
     }
-    const navigateSettings = async (section, label) => {
-      if (width <= 640) await page.locator(".settings-mobile-section-picker").selectOption(section);
-      else await page.getByRole("navigation", { name: "Settings", exact: true }).getByRole("button", { name: label, exact: true }).click();
+    const navigateSettings = async (_section, label) => {
+      await page.getByRole("navigation", { name: "Settings", exact: true }).getByRole("button", { name: label, exact: true }).click();
     };
     await navigateSettings("models", "Models");
     assert.equal(await page.locator(".settings-section-host:not([hidden]) .config-panel-root").count(), 1);
@@ -103,11 +101,7 @@ try {
     assert.equal(await page.locator(".settings-dialog-surface").getAttribute("data-section"), "models");
     await navigateSettings("general", "General");
     assert.equal(await page.getByRole("slider", { name: "Chat font size", exact: true }).inputValue(), "14");
-    if (width > 640) {
-      assert.equal(await page.locator(".settings-navigation-item:disabled").count(), 3);
-    } else {
-      assert.equal(await page.locator(".settings-mobile-section-picker option:disabled").count(), 3);
-    }
+    assert.equal(await page.locator(".settings-navigation-item:disabled").count(), 3);
     const previousHeight = 900;
     await page.setViewportSize({ width, height: 568 });
     const lastToggle = page.getByRole("switch", { name: "Show actions for selected text", exact: true });
@@ -135,13 +129,7 @@ try {
     await page.getByText("No sessions found", { exact: true }).waitFor({ state: "attached" });
     const themeButton = page.getByRole("button", { name: /^Theme:/ });
     const menu = page.getByRole("menu", { name: "Appearance", exact: true });
-    const showToolbar = async () => {
-      if (width > 640) return;
-      const more = page.locator("[data-mobile-toolbar-more]");
-      if (await more.getAttribute("aria-expanded") !== "true") await more.click();
-    };
     const openThemeMenu = async () => {
-      await showToolbar();
       await themeButton.click();
       await menu.waitFor();
     };
@@ -193,7 +181,6 @@ try {
     await menu.waitFor({ state: "detached" });
 
     // Both selectors share positioning, dismissal, and focus handling.
-    await showToolbar();
     await page.getByRole("button", { name: "Language", exact: true }).click();
     const languageMenu = page.getByRole("menu", { name: "Language", exact: true });
     await languageMenu.waitFor();

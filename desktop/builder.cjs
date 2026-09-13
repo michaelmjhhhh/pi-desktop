@@ -5,7 +5,7 @@ module.exports = {
   appId: 'com.michael.pi-desktop',
   productName: 'Pi Desktop',
   directories: { output: 'dist' },
-  files: ['desktop/main.cjs', 'desktop/server.cjs', 'package.json', 'LICENSE', 'NOTICE', '!node_modules{,/**/*}'],
+  files: ['desktop/main.cjs', 'desktop/navigation.cjs', 'package.json', 'LICENSE', 'NOTICE', '!node_modules{,/**/*}'],
   extraResources: [
     { from: '.desktop/server', to: 'server' },
     // electron-builder excludes a source root's node_modules unless mapped explicitly.
