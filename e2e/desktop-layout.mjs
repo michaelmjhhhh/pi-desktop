@@ -30,23 +30,26 @@ export async function checkDesktopLayout(application, page) {
     const composer = page.locator('textarea').last();
     await composer.fill('Desktop layout draft');
   }
-  await application.evaluate(({ BrowserWindow }) => {
+  // Keep native pointer interactions inside the runner's display work area.
+  await application.evaluate(({ BrowserWindow }, [width, height]) => {
     const window = BrowserWindow.getAllWindows()[0];
     window.webContents.setZoomFactor(1);
-    window.setSize(1440, 960);
-  });
-  await page.waitForFunction(() => innerWidth === 1440);
+    window.setSize(width, height);
+  }, initialSize);
+  await page.waitForFunction(width => innerWidth === width, initialSize[0]);
   for (const panel of ['sidebar', 'right-panel']) {
     if (panel === 'right-panel') await page.getByRole('button', { name: 'Show file panel', exact: true }).click();
     const handle = page.locator(`[data-resize-handle="${panel}"]`);
     await handle.waitFor({ state: 'visible' });
-    const before = Number(await handle.getAttribute('aria-valuenow'));
     await handle.focus();
+    await handle.press('Home');
+    const before = Number(await handle.getAttribute('aria-valuenow'));
     await handle.press(panel === 'sidebar' ? 'ArrowRight' : 'ArrowLeft');
     const afterKeyboard = Number(await handle.getAttribute('aria-valuenow'));
     assert.ok(afterKeyboard > before, `${panel} keyboard resize`);
+    // hover waits for a stable hit target after the keyboard width transition.
+    await handle.hover();
     const box = await handle.boundingBox();
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
     await page.mouse.move(box.x + (panel === 'sidebar' ? 30 : -30), box.y + box.height / 2, { steps: 5 });
     await page.mouse.up();
@@ -54,10 +57,5 @@ export async function checkDesktopLayout(application, page) {
   }
   await page.getByRole('button', { name: 'Hide file panel', exact: true }).first().click();
   assert.equal(await page.locator('textarea').last().inputValue(), 'Desktop layout draft', 'Window and panel changes preserve the current draft');
-  // Fresh windows are constrained to the display work area. Restore that size
-  // before capturing persisted values so the restart compares the same layout.
-  await application.evaluate(({ BrowserWindow }, [width, height]) => BrowserWindow.getAllWindows()[0].setSize(width, height), initialSize);
-  await page.waitForFunction(width => innerWidth === width, initialSize[0]);
-  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   return page.evaluate(() => ({ sidebarWidth: localStorage.getItem('pi-sidebar-width'), rightPanelWidth: localStorage.getItem('pi-right-panel-width') }));
 }
