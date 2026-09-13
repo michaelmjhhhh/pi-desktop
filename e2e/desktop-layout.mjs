@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 
 export async function checkDesktopLayout(application, page) {
+  const initialSize = await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getSize());
   for (const zoom of [1, 1.25, 1.5]) {
     await application.evaluate(({ BrowserWindow }, factor) => {
       const window = BrowserWindow.getAllWindows()[0];
@@ -42,15 +43,21 @@ export async function checkDesktopLayout(application, page) {
     const before = Number(await handle.getAttribute('aria-valuenow'));
     await handle.focus();
     await handle.press(panel === 'sidebar' ? 'ArrowRight' : 'ArrowLeft');
-    assert.ok(Number(await handle.getAttribute('aria-valuenow')) > before, `${panel} keyboard resize`);
+    const afterKeyboard = Number(await handle.getAttribute('aria-valuenow'));
+    assert.ok(afterKeyboard > before, `${panel} keyboard resize`);
     const box = await handle.boundingBox();
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.down();
     await page.mouse.move(box.x + (panel === 'sidebar' ? 30 : -30), box.y + box.height / 2, { steps: 5 });
     await page.mouse.up();
-    assert.ok(Number(await handle.getAttribute('aria-valuenow')) > before, `${panel} pointer resize`);
+    assert.ok(Number(await handle.getAttribute('aria-valuenow')) > afterKeyboard, `${panel} pointer resize`);
   }
   await page.getByRole('button', { name: 'Hide file panel', exact: true }).first().click();
   assert.equal(await page.locator('textarea').last().inputValue(), 'Desktop layout draft', 'Window and panel changes preserve the current draft');
+  // Fresh windows are constrained to the display work area. Restore that size
+  // before capturing persisted values so the restart compares the same layout.
+  await application.evaluate(({ BrowserWindow }, [width, height]) => BrowserWindow.getAllWindows()[0].setSize(width, height), initialSize);
+  await page.waitForFunction(width => innerWidth === width, initialSize[0]);
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   return page.evaluate(() => ({ sidebarWidth: localStorage.getItem('pi-sidebar-width'), rightPanelWidth: localStorage.getItem('pi-right-panel-width') }));
 }
