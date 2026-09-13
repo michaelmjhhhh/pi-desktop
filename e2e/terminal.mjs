@@ -103,6 +103,7 @@ try {
 
       await hidePanel();
       await showSidebar();
+      await page.getByRole("button", { name: "Explorer", exact: true }).click();
       await page.getByText("note.txt", { exact: true }).click();
       await page.getByText("File viewer fixture", { exact: true }).waitFor();
       assert.equal(await page.locator(".terminal-panel").count(), 1);
