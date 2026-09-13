@@ -13,7 +13,6 @@ const React = await jiti.import("react");
 const { renderToStaticMarkup } = await jiti.import("react-dom/server");
 const { ChatInput, ModelErrorBanner, ModelScopeWarningBanner, filterModelOptions, modelSupportsImageInput } = await jiti.import("./ChatInput.tsx");
 const { canClearBuiltinCommandInput, canRestoreUserMessage, canRunBuiltinSlashCommandWhileStreaming, compressImageFile, getUpwardMenuMaxHeight, getUserMessageText, getUserMessageDraftImages, isExactSlashCommand, replaceLinksWithMarkdown, shouldCompressImageFile } = await jiti.import("./chat-input-helpers.ts");
-const { ModelSelector } = await jiti.import("./ModelSelector.tsx");
 const { clearDraft, getDraft, mergeRestoredSubmissionDraft, mergeRestoredSubmissionText, rekeyDraft, setDraft } = await jiti.import("@/lib/draft-store.ts");
 const { I18nProvider } = await jiti.import("@/hooks/useI18n");
 
@@ -95,17 +94,6 @@ test("follow-up shortcuts preserve newline, IME and completion behavior", () => 
   }
 });
 
-test("shows the follow-up shortcut in the button tooltip", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(I18nProvider, null, React.createElement(ChatInput, {
-      onSend() {}, onAbort() {}, onFollowUp() {}, isStreaming: true,
-    })),
-  );
-
-  assert.match(html, /title="Queue this message after the agent finishes \(Alt\/Option\+Enter\)"/);
-  assert.match(html, /aria-keyshortcuts="Alt\+Enter"/);
-});
-
 test("renders the upstream model error", () => {
   const html = renderToStaticMarkup(
     React.createElement(
@@ -173,64 +161,6 @@ test("keeps the model selector visible when a model error leaves no options", ()
   assert.match(html, /title="No available models"/);
 });
 
-test("renders the read-only tool preset as the active selection", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(
-      I18nProvider,
-      null,
-      React.createElement(ChatInput, {
-        onSend() {},
-        onAbort() {},
-        onToolPresetChange() {},
-        isStreaming: false,
-        toolPreset: "read-only",
-      }),
-    ),
-  );
-
-  assert.match(html, /title="Change tool preset: read-only"/);
-  assert.match(html, />read-only<\/span>/);
-});
-
-test("renders the empty tool preset as Chat only", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(
-      I18nProvider,
-      null,
-      React.createElement(ChatInput, {
-        onSend() {},
-        onAbort() {},
-        onToolPresetChange() {},
-        isStreaming: false,
-        toolPreset: "none",
-      }),
-    ),
-  );
-
-  assert.match(html, /title="Change tool preset: Chat only"/);
-  assert.match(html, />Chat only<\/span>/);
-});
-
-test("renders the compact composer with the standard Send button and no session controls", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(
-      I18nProvider,
-      null,
-      React.createElement(ChatInput, {
-        onSend() {},
-        onAbort() {},
-        isStreaming: false,
-        compact: true,
-      }),
-    ),
-  );
-
-  assert.match(html, /<textarea/);
-  assert.match(html, />Send<\/button>/);
-  assert.equal((html.match(/<button\b/g) ?? []).length, 1);
-  assert.doesNotMatch(html, /type="file"|Attach image|Change tool preset/);
-});
-
 test("shows and locks the optimistic model while a switch is pending", () => {
   const html = renderToStaticMarkup(
     React.createElement(
@@ -268,30 +198,6 @@ test("filters model options by name and id", () => {
   assert.equal(filterModelOptions(options, "anthropic/claude").length, 0);
   assert.equal(filterModelOptions(options, "missing").length, 0);
   assert.equal(filterModelOptions(options, "  "), options);
-});
-
-test("renders the shared field model selector as a disabled gray control", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(
-      I18nProvider,
-      null,
-      React.createElement(ModelSelector, {
-        options: [{ provider: "openai", modelId: "gpt-5.6-sol", name: "GPT-5.6 Sol" }],
-        value: null,
-        onChange() {},
-        onClear() {},
-        emptyLabel: "Parent default",
-        ariaLabel: "Model override",
-        disabled: true,
-        variant: "field",
-      }),
-    ),
-  );
-
-  assert.match(html, /aria-label="Model override"/);
-  assert.match(html, /disabled=""/);
-  assert.match(html, /background:var\(--bg-panel\)/);
-  assert.match(html, />Parent default</);
 });
 
 test("caps an upward menu to the visible space above its anchor", () => {

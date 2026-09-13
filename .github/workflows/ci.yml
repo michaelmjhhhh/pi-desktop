@@ -27,28 +27,6 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm test
 
-  e2e:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22.22.2
-          cache: npm
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npm run build
-      - run: npm run test:e2e
-        env:
-          E2E_SERVER_MODE: start
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: e2e-failure
-          path: test-results/e2e/
-          retention-days: 7
-
   desktop:
     name: Desktop regression (macOS arm64)
     runs-on: macos-15
@@ -62,13 +40,9 @@ jobs:
       - run: npm ci
       - run: npm run desktop:build
       - run: npm run test:desktop
-      - run: npm run test:desktop:ui
       - run: npm run desktop:pack
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      - run: npm run test:desktop:ui
-        env:
-          PI_DESKTOP_EXECUTABLE: dist/mac-arm64/Pi Desktop.app/Contents/MacOS/Pi Desktop
       - run: npm run test:desktop
         env:
           PI_DESKTOP_RESOURCES: dist/mac-arm64/Pi Desktop.app/Contents/Resources

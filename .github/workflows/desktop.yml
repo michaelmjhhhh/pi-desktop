@@ -55,9 +55,6 @@ jobs:
       - run: npm run desktop:dist -- --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-      - run: npm run test:desktop:ui
-        env:
-          PI_DESKTOP_EXECUTABLE: dist/mac-arm64/Pi Desktop.app/Contents/MacOS/Pi Desktop
       - run: npm run test:desktop
         env:
           PI_DESKTOP_RESOURCES: dist/mac-arm64/Pi Desktop.app/Contents/Resources

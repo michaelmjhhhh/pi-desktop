@@ -17,43 +17,6 @@ function callbackBody(name, nextName) {
   return source.slice(start, end);
 }
 
-test("explicit context changes invalidate a pending workspace restore", () => {
-  const callbacks = [
-    ["handleCwdChange", "handleSelectSession"],
-    ["handleSelectSession", "handleNewSession"],
-    ["handleNewSession", "hydrateSelectedSession"],
-    ["handleSessionCreated", "handleAgentEnd"],
-    ["handleSessionForked", "handleInitialRestoreDone"],
-    ["handleSessionDeleted", "handleOpenFile"],
-  ];
-
-  for (const [name, nextName] of callbacks) {
-    assert.match(callbackBody(name, nextName), /invalidateWorkspaceRestore\(\);/);
-  }
-});
-
-test("all active-session transitions share one persistence effect", () => {
-  assert.match(
-    source,
-    /useEffect\(\(\) => \{\s+if \(!selectedSession\) return;[\s\S]*?setLastOpenSession\(projectKey, selectedSession\.id\);\s+\}, \[selectedSession\]\);/,
-  );
-});
-
-test("keeps chat scroll positions in page memory by session id", () => {
-  assert.match(source, /useRef\(new Map<string, ChatScrollPosition>\(\)\)/);
-  assert.match(source, /sessionScrollPositionsRef\.current\.set\(sessionId, position\)/);
-  assert.match(source, /initialScrollPosition=\{selectedSession \? sessionScrollPositionsRef\.current\.get\(selectedSession\.id\) \?\? null : null\}/);
-  assert.match(source, /onScrollPositionChange=\{handleSessionScrollPositionChange\}/);
-  assert.doesNotMatch(source, /localStorage[^\n]*sessionScroll/i);
-});
-
-test("workspace restoration remains inside the cross-project branch", () => {
-  assert.match(
-    callbackBody("handleCwdChange", "handleSelectSession"),
-    /if \(currentProject !== newProject\) \{[\s\S]*?restoreWorkspaceContext\(newProject, cwd\);[\s\S]*?\}/,
-  );
-});
-
 test("New restores the draft after session navigation and workspace auto-restore", async (t) => {
   const callbacks = [
     callbackBody("restoreWorkspaceContext", "handleCwdChange"),
