@@ -18,6 +18,14 @@ Lint: `npm run lint`
 - Do not use `next dev --webpack` as a fallback. This repository's development graph can fail on `undici` imports such as `node:console`; development is expected to use Turbopack.
 - Next.js may append a generated `BEGIN:nextjs-agent-rules` block to `AGENTS.md` when `next dev` starts. Treat that as generated tooling output, verify it with `git status`, and do not include it in an unrelated feature commit.
 
+### UI testing policy
+
+- Do not write unit tests or end-to-end tests for UI, or any automated front-end visual tests, including browser scripts, screenshots, snapshots, or markup/CSS assertions.
+- UI testing is performed manually by the user. After each change, provide a concise to-do checklist with steps and expected results for the affected UI; use `docs/manual-testing.md` as a reference.
+- Do not run automated UI testing on the user's behalf or claim manual checks passed unless the user reports the results.
+- Keep automated tests limited to essential non-UI behavior such as business logic, parsing, security, persistence, and backend/runtime behavior.
+
+
 ---
 
 ## Architecture

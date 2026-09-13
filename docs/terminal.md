@@ -52,7 +52,4 @@ application. End users should replace the application with a repaired package.
 ## Verification
 
 Run `npm test` for native PTY, lease, output cursor, input queue, and storage
-checks. `npm run test:terminal` starts an isolated development server and runs
-desktop/mobile browser checks using generated session fixtures. Install the
-Playwright Chromium browser first with `npx playwright install chromium`.
-The browser check prints the temporary location of its screenshots and log.
+checks. UI checks are manual; use the [terminal checklist](manual-testing.md#terminal) after terminal changes.

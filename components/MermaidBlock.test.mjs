@@ -82,17 +82,6 @@ test("CodeBlock renders plain text without tokenization while streaming", () => 
   assert.match(html, /const x = 1;/);
 });
 
-test("MermaidBlock handles Chinese characters in diagram", () => {
-  const chineseMermaid = `sequenceDiagram
-    participant PC as PC客户端
-    PC->>SV: 请求登录`;
-
-  const html = renderMermaid({ code: chineseMermaid, defaultPreview: true });
-
-  assert.doesNotMatch(html, /mermaid-block-error/);
-  assert.match(html, /mermaid-block/);
-});
-
 test("downloadMermaidSvg downloads XML-serialized SVG and releases its URL", async () => {
   const originalDocument = globalThis.document;
   const originalXMLSerializer = globalThis.XMLSerializer;

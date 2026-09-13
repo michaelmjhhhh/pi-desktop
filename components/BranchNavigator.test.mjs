@@ -153,7 +153,6 @@ test("hasSessionBranches reports false for a linear chain (no branching) and tru
     { entry: { type: "message", id: "b2", parentId: "e2", timestamp: "t", message: { role: "user", content: "y" } }, children: [] },
   ];
   assert.equal(hasSessionBranches([root]), true);
-  assert.equal(hasSessionBranches([root]), true);
 });
 
 test("hasSessionBranches reports true for multiple root nodes (a branch from the first message)", () => {

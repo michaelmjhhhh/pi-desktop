@@ -45,7 +45,7 @@ npm run dev
 npm run desktop:dev
 ```
 
-[Testing and releases](docs/release.md)
+[Testing and releases](docs/release.md) · [Manual testing](docs/manual-testing.md) · [Test audit](docs/test-audit.md)
 
 ## License
 
