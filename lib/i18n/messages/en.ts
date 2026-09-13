@@ -375,8 +375,6 @@ export const enLocale: LocalePlugin = {
     "chat.previewImage": "Preview image",
     "chat.filterModels": "Search models…",
     "chat.noMatchingModels": "No matching models",
-    "chat.moreControls": "More controls",
-    "chat.collapseControls": "Collapse controls",
     "chat.shell": "Shell",
     "terminal.title": "Terminal",
     "terminal.tabLabel": "Terminal: {name}",

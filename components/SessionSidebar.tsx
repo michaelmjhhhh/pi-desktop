@@ -31,14 +31,6 @@ export function getSessionListIndices(count: number, scrollTop: number, viewport
   return indices;
 }
 
-declare global {
-  interface Window {
-    piDesktop?: {
-      selectDirectory: () => Promise<string | null>;
-    };
-  }
-}
-
 function ToolbarIconButton({
   onClick,
   title,

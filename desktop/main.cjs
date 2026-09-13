@@ -5,6 +5,7 @@ const { randomBytes } = require('node:crypto');
 const { appendFileSync, mkdirSync } = require('node:fs');
 const { join, delimiter } = require('node:path');
 const { homedir } = require('node:os');
+const { configureNavigation, openExternal } = require('./navigation.cjs');
 app.setName('Pi Desktop');
 if (process.env.PI_DESKTOP_USER_DATA_DIR) app.setPath('userData', process.env.PI_DESKTOP_USER_DATA_DIR);
 let backend;
@@ -27,7 +28,6 @@ async function startBackend() {
     NODE_ENV: 'production', NEXT_TELEMETRY_DISABLED: '1',
     PI_DESKTOP_TOKEN: token, PI_DESKTOP_SERVER_ROOT: root,
     PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR || join(homedir(), '.pi', 'agent'),
-    PI_WEB_PASSWORD: '', PI_WEB_ALLOWED_HOSTS: '', PI_WEB_HOSTNAME: '127.0.0.1',
     PATH: [process.platform === 'win32' ? runtime : join(runtime, 'bin'),
       join(homedir(), '.local', 'bin'), '/opt/homebrew/bin', '/usr/local/bin', process.env.PATH || ''].join(delimiter),
   };
@@ -61,11 +61,6 @@ async function startBackend() {
     });
   });
 }
-function openExternal(url) {
-  try {
-    if (['https:', 'http:', 'mailto:'].includes(new URL(url).protocol)) void shell.openExternal(url);
-  } catch { /* Ignore invalid links. */ }
-}
 async function createWindow() {
   window = new BrowserWindow({
     width: 1440, height: 960, minWidth: 900, minHeight: 600,
@@ -73,11 +68,7 @@ async function createWindow() {
     title: 'Pi Desktop', show: false, backgroundColor: '#1a1a1a',
     webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true, webSecurity: true },
   });
-  window.webContents.setWindowOpenHandler(({ url }) => { openExternal(url); return { action: 'deny' }; });
-  window.webContents.on('will-navigate', (event, url) => {
-    if (new URL(url).origin !== origin) { event.preventDefault(); openExternal(url); }
-  });
-  window.webContents.on('will-attach-webview', (event) => event.preventDefault());
+  configureNavigation(window, origin);
   window.once('ready-to-show', () => window.show());
   window.on('closed', () => { window = null; });
   await window.loadURL(origin);

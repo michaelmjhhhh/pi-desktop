@@ -28,6 +28,7 @@ const LONG = "e2e-long-session";
 const BRANCH = "e2e-branch-session";
 const RICH = "e2e-rich-session";
 const COMPACTED = "e2e-compacted-session";
+const DIALOG_SESSIONS = ["e2e-dialog-1280", "e2e-dialog-900"];
 const text = (i) => `E2E message ${String(i).padStart(4, "0")}`;
 const ids = (start, end) => Array.from({ length: end - start }, (_, i) => `e${start + i}`);
 
@@ -114,6 +115,7 @@ try {
     + "E2E compacted answer paragraph.\n\n".repeat(20),
   }]));
   writeSession(COMPACTED, compactedEntries);
+  for (const id of DIALOG_SESSIONS) writeSession(id, [message('dialog-root', null, 'user', 'Desktop dialog fixture ' + id)]);
 
   const probe = createServer();
   probe.listen(0, "127.0.0.1");
@@ -123,7 +125,7 @@ try {
   const base = `http://127.0.0.1:${port}`;
   server = spawn(process.execPath, [join(root, "node_modules/next/dist/bin/next"), mode, "-H", "127.0.0.1", "-p", String(port)], {
     cwd: root,
-    env: { ...process.env, PI_CODING_AGENT_DIR: agentDir, PI_WEB_PASSWORD: "", NEXT_TELEMETRY_DISABLED: "1" },
+    env: { ...process.env, PI_CODING_AGENT_DIR: agentDir, NEXT_TELEMETRY_DISABLED: "1" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   server.once("error", (error) => { serverError = error; });
@@ -144,7 +146,7 @@ try {
     const response = await fetch(`${base}/api/sessions`, { signal: AbortSignal.timeout(5000) }).catch(() => null);
     if (response?.ok) {
       const { sessions } = await response.json();
-      assert.deepEqual(sessions.map((session) => session.id).sort(), [LONG, BRANCH, RICH, COMPACTED].sort());
+      assert.deepEqual(sessions.map((session) => session.id).sort(), [LONG, BRANCH, RICH, COMPACTED, ...DIALOG_SESSIONS].sort());
       break;
     }
     assert.ok(Date.now() < deadline, "Server readiness timed out; see server.log");
@@ -174,8 +176,8 @@ try {
   assert.equal(compacted.context.messages.some((entry) => entry.role === "user"), false);
   console.log("PASS: bounded history, branch context, pagination root, and API errors");
 
-  browser = await chromium.launch();
-  for (const viewport of [{ width: 1280, height: 800 }, { width: 390, height: 844 }]) {
+  browser = await chromium.launch({ channel: process.env.E2E_BROWSER_CHANNEL || undefined });
+  for (const viewport of [{ width: 1280, height: 800 }, { width: 900, height: 700 }]) {
     context = await browser.newContext({ viewport, locale: "en-US" });
     await context.tracing.start({ screenshots: true, snapshots: true });
     page = await context.newPage();
@@ -349,9 +351,11 @@ try {
         await page.unroute(agentRoute);
       }
       console.log("PASS: session reading offsets, collapsed process details, and cancelled branch restoration");
-      await page.goto(`${base}/?session=${COMPACTED}`, { waitUntil: "domcontentloaded" });
-      await heading.waitFor({ state: "visible" });
+
     }
+    // Starting an agent appends metadata; keep it separate from fixed pagination fixtures.
+    await page.goto(`${base}/?session=e2e-dialog-${viewport.width}`, { waitUntil: "domcontentloaded" });
+    await page.getByText(`Desktop dialog fixture e2e-dialog-${viewport.width}`, { exact: true }).last().waitFor();
     await checkExtensionDialogs(page, artifacts, viewport.width);
     if (viewport.width > 600) {
       await page.goto(`${base}/?session=${RICH}`, { waitUntil: "domcontentloaded" });

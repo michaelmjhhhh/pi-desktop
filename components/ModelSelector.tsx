@@ -4,7 +4,6 @@ import { createPortal } from "react-dom";
 import { ProviderIcon } from "./ProviderIcon";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useI18n } from "@/hooks/useI18n";
-import { useIsMobile } from "@/hooks/useIsMobile";
 
 export interface ModelSelectorOption {
   provider: string;
@@ -70,7 +69,6 @@ export function ModelSelector({
   placement = "up",
 }: ModelSelectorProps) {
   const { t } = useI18n();
-  const isMobile = useIsMobile();
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -173,12 +171,10 @@ export function ModelSelector({
     : {
         display: "flex",
         alignItems: "center",
-        justifyContent: isMobile ? "flex-start" : undefined,
         gap: 6,
-        width: isMobile ? "100%" : undefined,
-        maxWidth: isMobile ? "100%" : 220,
+        maxWidth: 220,
         height: 32,
-        padding: isMobile ? "8px 10px" : "8px 12px",
+        padding: "8px 12px",
         overflow: "hidden",
         border: "none",
         borderRadius: 9,
@@ -202,7 +198,7 @@ export function ModelSelector({
     <div
       ref={rootRef}
       className={`model-selector is-${variant}${locked ? " is-disabled" : ""}`}
-      style={{ position: "relative", width: variant === "field" || isMobile ? "100%" : undefined, minWidth: 0, flex: variant === "toolbar" && isMobile ? "1 1 auto" : undefined }}
+      style={{ position: "relative", width: (variant === "field") ? "100%" : undefined, minWidth: 0 }}
       onKeyDown={(event) => {
         if (event.key !== "Escape" || !open) return;
         event.preventDefault();
@@ -254,11 +250,9 @@ export function ModelSelector({
           <ProviderIcon id={value?.provider ?? ""} size={16} />
         )}
         <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentName}</span>
-        {(
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, color: "var(--text-dim)" }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, color: "var(--text-dim)" }}>
             <polyline points="6 9 12 15 18 9" />
           </svg>
-        )}
       </button>
 
       {open && anchorRect && (() => {

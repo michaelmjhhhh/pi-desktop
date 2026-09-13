@@ -375,8 +375,6 @@ export const zhTWLocale: LocalePlugin = {
     "chat.previewImage": "預覽圖片",
     "chat.filterModels": "篩選模型…",
     "chat.noMatchingModels": "找不到相符的模型",
-    "chat.moreControls": "更多控制項",
-    "chat.collapseControls": "收起控制項",
     "chat.shell": "Shell",
     "terminal.title": "終端機",
     "terminal.tabLabel": "終端機：{name}",

@@ -1,6 +1,6 @@
 import { collectLicenses } from './collect-licenses.mjs';
 import { pruneDesktop } from './prune-desktop.mjs';
-import { cp, mkdir, readFile, rm, writeFile, chmod } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile, chmod, rename } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
@@ -31,14 +31,17 @@ await run(process.execPath, [join(root, 'node_modules/next/dist/bin/next'), 'bui
 const server = join(stage, 'server');
 await cp(join(root, '.next-desktop/standalone'), server, { recursive: true, verbatimSymlinks: true });
 // Normalize the production output name so the runtime does not need build flags.
-await cp(join(server, '.next-desktop'), join(server, '.next'), { recursive: true });
-await rm(join(server, '.next-desktop'), { recursive: true, force: true });
+await rename(join(server, '.next-desktop'), join(server, '.next'));
 const requiredPath = join(server, '.next/required-server-files.json');
 const required = JSON.parse(await readFile(requiredPath, 'utf8'));
 required.config.distDir = '.next';
 await writeFile(requiredPath, JSON.stringify(required));
 await cp(join(root, '.next-desktop/static'), join(server, '.next/static'), { recursive: true });
-await cp(join(root, 'public'), join(server, 'public'), { recursive: true });
+await cp(join(root, 'public'), join(server, 'public'), {
+  recursive: true, filter: (source) => source !== join(root, 'public/icons/app-icon.png'),
+});
+// desktop/server.cjs is the sole authenticated production entry point.
+await rm(join(server, 'server.js'), { force: true });
 await cp(join(root, 'LICENSE'), join(server, 'LICENSE'));
 
 // Official Node distribution includes npm/npx for Pi package and skill management.

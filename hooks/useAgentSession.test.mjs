@@ -1,3 +1,4 @@
+const notificationSource = await readFile(new URL("./useSessionNotifications.ts", import.meta.url), "utf8");
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -88,8 +89,8 @@ test("opening System or Tools lazily starts a dormant session without sending a 
   assert.match(loadSystemInfoSource, /setSystemPrompt\(state\.systemPrompt \?\? ""\)/);
   assert.match(loaderEffectSource, /onSystemInfoLoaderChange\?\.\(loadSystemInfo\)/);
   assert.match(loaderEffectSource, /onSystemInfoLoaderChange\?\.\(null\)/);
-  assert.match(appShellSource, /onClick=\{\(\) => handleSystemInfoToggle\("system", mobile\)\}/);
-  assert.match(appShellSource, /onClick=\{\(\) => handleSystemInfoToggle\("tools", mobile\)\}/);
+  assert.match(appShellSource, /onClick=\{\(\) => handleSystemInfoToggle\("system"\)\}/);
+  assert.match(appShellSource, /onClick=\{\(\) => handleSystemInfoToggle\("tools"\)\}/);
   assert.match(appShellSource, /systemInfoLoaderRef\.current/);
   assert.doesNotMatch(appShellSource, /systemPrompt !== null \|\| systemInfoLoading/);
   assert.match(appShellSource, /const loadId = \+\+systemInfoLoadIdRef\.current/);
@@ -357,13 +358,13 @@ test("plays the enabled sound once for each extension dialog", () => {
 });
 
 test("suppresses sounds and browser attention for the active subagent session", () => {
-  const completionSource = appShellSource.slice(
-    appShellSource.indexOf("  const handleAgentEnd = useCallback"),
-    appShellSource.indexOf("  const handleAttentionNeeded = useCallback"),
+  const completionSource = notificationSource.slice(
+    notificationSource.indexOf("  const notifyCompletion = useCallback"),
+    notificationSource.indexOf("  const handleAttentionNeeded = useCallback"),
   );
-  const attentionSource = appShellSource.slice(
-    appShellSource.indexOf("  const handleAttentionNeeded = useCallback"),
-    appShellSource.indexOf("  const handleAutoName = useCallback"),
+  const attentionSource = notificationSource.slice(
+    notificationSource.indexOf("  const handleAttentionNeeded = useCallback"),
+    notificationSource.indexOf("  return { notifyCompletion"),
   );
 
   assert.match(chatWindowSource, /completionNotificationsEnabled = session\?\.relation\?\.kind !== "subagent"/);
@@ -374,17 +375,17 @@ test("suppresses sounds and browser attention for the active subagent session", 
 });
 
 test("routes blocking extension requests through deduplicated browser attention notifications", () => {
-  const completionSource = appShellSource.slice(
-    appShellSource.indexOf("  const handleAgentEnd = useCallback"),
-    appShellSource.indexOf("  const handleAttentionNeeded = useCallback"),
+  const completionSource = notificationSource.slice(
+    notificationSource.indexOf("  const notifyCompletion = useCallback"),
+    notificationSource.indexOf("  const handleAttentionNeeded = useCallback"),
   );
   const extensionRequestSource = source.slice(
     source.indexOf("  const handleExtensionUiRequest = useCallback"),
     source.indexOf("  const settleUiStage = useCallback"),
   );
-  const attentionSource = appShellSource.slice(
-    appShellSource.indexOf("  const handleAttentionNeeded = useCallback"),
-    appShellSource.indexOf("  const handleAutoName = useCallback"),
+  const attentionSource = notificationSource.slice(
+    notificationSource.indexOf("  const handleAttentionNeeded = useCallback"),
+    notificationSource.indexOf("  return { notifyCompletion"),
   );
 
   assert.match(

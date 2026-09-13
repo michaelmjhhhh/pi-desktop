@@ -4,7 +4,7 @@ import { memo, useEffect, useRef, useState, useCallback, useMemo, type RefObject
 import ReactMarkdown, { type Options as ReactMarkdownOptions } from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import {
-  markdownPreviewRemarkPlugins,
+  markdownRemarkPlugins,
   normalizeDisplayMath,
 } from "@/lib/markdown";
 import { isMessageGroupAnchor, splitFinalAssistantBlocks } from "@/lib/message-display";
@@ -123,7 +123,7 @@ function remarkPreviewOutline() {
 }
 
 const previewRemarkPlugins = [
-  ...(markdownPreviewRemarkPlugins ?? []),
+  ...(markdownRemarkPlugins ?? []),
   remarkPreviewOutline,
 ];
 const previewRehypePlugins: ReactMarkdownOptions["rehypePlugins"] = [

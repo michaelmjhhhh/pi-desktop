@@ -61,39 +61,12 @@ html.dark,
   --bg-subtle: rgba(255,255,255,0.04);
 }
 
-/* WebKit reports dvh/innerHeight without the status-bar strip for installed
-   home-screen apps even though the layout still starts at the screen's top.
-   In standalone mode there is no browser toolbar to make vh unstable, and vh
-   includes that missing strip. The keyboard hook temporarily overrides this
-   custom property with visualViewport.height while an editor is focused. */
-@media (display-mode: standalone) {
-  :root {
-    --app-viewport-height: 100vh;
-  }
-}
-
+/* SVG geometry is shared across themes; the mask takes the current text color. */
 .catppuccin-file-icon {
   display: block;
   flex-shrink: 0;
-  background: center / contain no-repeat var(--catppuccin-icon-light);
-}
-html.dark .catppuccin-file-icon {
-  background-image: var(--catppuccin-icon-dark);
-}
-
-/* Use the SVG alpha channel as a mask so file icons follow the app's
-   restrained text palette instead of Catppuccin's language-specific colors. */
-@supports (mask-image: url("mask.svg")) or (-webkit-mask-image: url("mask.svg")) {
-  .catppuccin-file-icon {
-    background: var(--text-dim);
-    mask: center / contain no-repeat var(--catppuccin-icon-light);
-    -webkit-mask: center / contain no-repeat var(--catppuccin-icon-light);
-  }
-  html.dark .catppuccin-file-icon {
-    background: var(--text-dim);
-    mask-image: var(--catppuccin-icon-dark);
-    -webkit-mask-image: var(--catppuccin-icon-dark);
-  }
+  background: var(--text-dim);
+  mask: center / contain no-repeat var(--file-icon);
 }
 
 /* Theme toggle: circular wipe via View Transitions API.
@@ -117,9 +90,7 @@ html.dark .catppuccin-file-icon {
 
 html, body {
   width: 100%;
-  height: 100vh;
   height: 100dvh;
-  height: var(--app-viewport-height, 100dvh);
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -826,10 +797,10 @@ pre, code {
   height: 100dvh;
   max-height: none;
   margin: 0;
-  padding-top: max(16px, env(safe-area-inset-top));
-  padding-right: max(16px, env(safe-area-inset-right));
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
-  padding-left: max(16px, env(safe-area-inset-left));
+  padding-top: 16px;
+  padding-right: 16px;
+  padding-bottom: 16px;
+  padding-left: 16px;
   overflow: hidden;
   border: 0;
   background: transparent;
@@ -857,8 +828,8 @@ pre, code {
 
 .image-preview-close {
   position: absolute;
-  top: max(12px, env(safe-area-inset-top));
-  right: max(12px, env(safe-area-inset-right));
+  top: 12px;
+  right: 12px;
   z-index: 1;
   display: inline-flex;
   align-items: center;
@@ -1019,20 +990,6 @@ pre, code {
   max-width: none !important;
 }
 
-@media (max-width: 480px) {
-  .mermaid-zoom-toolbar {
-    padding-inline: 8px;
-  }
-
-  .mermaid-zoom-title {
-    font-size: 10px;
-  }
-
-  .mermaid-zoom-viewport {
-    padding: 12px;
-  }
-}
-
 /* File viewer toolbar */
 .file-viewer-toolbar {
   min-width: 0;
@@ -1160,23 +1117,6 @@ pre, code {
 .directory-picker-path:focus-visible {
   border-color: var(--accent) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-
-@media (max-width: 640px) {
-  .file-viewer-meta {
-    display: none;
-  }
-}
-
-@media (max-width: 380px) {
-  .file-viewer-toolbar {
-    gap: 6px !important;
-    padding-inline: 8px !important;
-  }
-
-  .file-viewer-mode-button {
-    padding-inline: 6px;
-  }
 }
 
 /* File viewer markdown preview — larger headings */
@@ -1385,34 +1325,29 @@ span.token.table {
 }
 
 /* Desktop sidebar: animate width */
-@media (min-width: 641px) {
-  .sidebar-overlay-backdrop {
-    display: none !important;
-  }
-  .sidebar-container {
+.sidebar-container {
     position: relative;
     overflow: hidden;
     transition: width 0.2s ease, min-width 0.2s ease;
   }
-  .sidebar-container.sidebar-open {
+.sidebar-container.sidebar-open {
     width: var(--sidebar-width, 260px);
     min-width: var(--sidebar-width, 260px);
   }
-  .sidebar-container.sidebar-closed {
+.sidebar-container.sidebar-closed {
     width: 0;
     min-width: 0;
     border-right: none !important;
   }
-  /* keep inner content at fixed width so it doesn't reflow during animation */
-  .sidebar-container > * {
+/* keep inner content at fixed width so it doesn't reflow during animation */
+.sidebar-container > * {
     width: var(--sidebar-width, 260px);
     min-width: var(--sidebar-width, 260px);
   }
-  .sidebar-container.sidebar-resizing,
+.sidebar-container.sidebar-resizing,
   .sidebar-container.sidebar-resizing > * {
     transition: none !important;
   }
-}
 
 /* Wide desktop file panel: participate in the split layout. */
 @media (min-width: 960px) {
@@ -1442,7 +1377,7 @@ span.token.table {
 }
 
 /* Compact desktop file panel: overlay the chat instead of collapsing it. */
-@media (min-width: 641px) and (max-width: 959px) {
+@media (max-width: 959px) {
   .right-panel-resize-handle {
     display: none;
   }
@@ -1463,7 +1398,7 @@ span.token.table {
   .right-panel-container {
     position: fixed;
     top: 0;
-    right: env(safe-area-inset-right);
+    right: 0px;
     bottom: 0;
     z-index: 250;
     width: min(560px, calc(100vw - 48px));
@@ -1482,78 +1417,6 @@ span.token.table {
   .right-panel-container > * {
     width: 100%;
     min-width: 0;
-  }
-}
-
-/* Mobile sidebar: slide in/out as overlay */
-@media (max-width: 640px) {
-  .chat-stats-center {
-    display: none !important;
-  }
-  .sidebar-container {
-    position: fixed !important;
-    top: 0;
-    left: env(safe-area-inset-left);
-    bottom: 0;
-    width: 280px;
-    max-width: 85vw;
-    height: var(--app-viewport-height, 100dvh);
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-  }
-  .sidebar-container.sidebar-open {
-    transform: translateX(0);
-    box-shadow: 4px 0 20px rgba(0,0,0,0.15);
-  }
-  .sidebar-container.sidebar-closed {
-    transform: translateX(calc(-100% - env(safe-area-inset-left)));
-    box-shadow: none;
-  }
-
-  .right-panel-container {
-    position: fixed;
-    inset: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left);
-    height: var(--app-viewport-height, 100dvh);
-    z-index: 250;
-    overflow: hidden;
-    transition: transform 0.2s ease;
-  }
-  .right-panel-container.right-panel-open {
-    width: auto;
-    min-width: 0;
-  }
-  .right-panel-container.right-panel-closed {
-    width: 0 !important;
-    min-width: 0 !important;
-    border-left: none !important;
-    display: none !important;
-  }
-  .right-panel-container > * {
-    width: 100%;
-    min-width: 0;
-  }
-  .panel-resize-handle,
-  .right-panel-overlay-backdrop {
-    display: none;
-  }
-  .directory-picker-back,
-  .directory-picker-entry,
-  .directory-picker-action {
-    min-height: 44px !important;
-  }
-  .directory-picker-back {
-    min-width: 44px !important;
-  }
-  .directory-picker-footer {
-    flex-wrap: wrap;
-    padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
-  }
-  textarea,
-  input,
-  select {
-    font-size: 16px !important;
-  }
-  .chat-input-textarea {
-    font-size: max(16px, var(--chat-content-font-size, 14px)) !important;
   }
 }
 
@@ -1624,22 +1487,12 @@ span.token.table {
 .workspace-composer-controls { margin: 0 !important; padding: 4px 6px 2px; }
 .workspace-composer-input > button { border-radius: 50% !important; width: 36px; height: 36px; padding: 0 !important; justify-content: center; font-size: 0 !important; }
 .workspace-composer-input > button svg { transform: rotate(-90deg); width: 18px; height: 18px; }
-@media (min-width: 641px) {
-  .workspace-header-row { height: 60px !important; padding-left: 10px; padding-right: 12px; }
-  .workspace-header-row { gap: 4px; }
-  .workspace-header-row > .workspace-icon-button { width: 32px !important; height: 32px !important; margin-left: 0 !important; border: 0 !important; border-radius: 8px; }
-  .workspace-icon-button:hover { background: var(--bg-hover) !important; }
-  .workspace-icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  .workspace-icon-button > svg { width: 17px; height: 17px; }
-}
-@media (max-width: 640px) {
-  .workspace-welcome { margin-bottom: 20px; padding: 0 24px; }
-  .workspace-welcome h1 { font-size: 26px; }
-  .workspace-welcome-eyebrow { margin-bottom: 10px; }
-  .workspace-welcome p { font-size: 12px; }
-  .workspace-composer { border-radius: 16px; padding: 4px; }
-  .workspace-composer-input { padding: 10px !important; }
-}
+.workspace-header-row { height: 60px !important; padding-left: 10px; padding-right: 12px; }
+.workspace-header-row { gap: 4px; }
+.workspace-header-row > .workspace-icon-button { width: 32px !important; height: 32px !important; margin-left: 0 !important; border: 0 !important; border-radius: 8px; }
+.workspace-icon-button:hover { background: var(--bg-hover) !important; }
+.workspace-icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.workspace-icon-button > svg { width: 17px; height: 17px; }
 
 /* A shared sidebar grid keeps labels, icons, and counts aligned. */
 .workspace-brand { padding: 0 10px; gap: 10px; }
@@ -1680,9 +1533,7 @@ span.token.table {
 .workspace-all-projects:hover, .workspace-all-projects[aria-pressed="true"] { background: var(--bg-hover) !important; }
 .workspace-project-settings { margin-right: 2px; }
 
-@media (min-width: 641px) {
-  .workspace-welcome { padding-right: 72px; }
-}
+.workspace-welcome { padding-right: 72px; }
 
 /* Model picker: provider navigation, searchable rows, and saved favorites. */
 .model-picker {
@@ -1718,13 +1569,6 @@ span.token.table {
 .model-picker-empty { padding: 20px 12px; color: var(--text-dim); font-size: 12px; line-height: 1.7; }
 .model-picker-default { width: 100%; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted); text-align: left; font: inherit; font-size: 12px; cursor: pointer; }
 .model-picker-default:hover, .model-picker-default[aria-pressed="true"] { background: var(--bg-selected); }
-@media (max-width: 640px) {
-  .model-picker-providers { width: 46px; padding-inline: 4px; }
-  .model-picker-providers button { width: 34px; min-height: 36px; }
-  .model-picker-main { padding: 8px; }
-  .model-picker-choice { padding: 10px 8px; }
-  .model-picker-name { font-size: 12px; }
-}
 
 
 .workspace-search-field {

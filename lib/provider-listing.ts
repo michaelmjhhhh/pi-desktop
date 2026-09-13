@@ -53,7 +53,6 @@ export interface ApiKeyProviderListing {
 export interface OAuthProviderListing {
   id: string;
   name: string;
-  usesCallbackServer: boolean;
   loggedIn: boolean;
   /** True when the same provider can also be authenticated with an API key. */
   supportsApiKey: boolean;
@@ -109,7 +108,6 @@ export function buildOAuthProviderList(
     result.push({
       id: provider.id,
       name: OAUTH_DISPLAY_NAMES[provider.id] ?? provider.oauthName ?? provider.name,
-      usesCallbackServer: false,
       loggedIn: provider.credentialType === "oauth",
       supportsApiKey: provider.hasApiKeyLogin,
     });

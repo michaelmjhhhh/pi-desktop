@@ -44,8 +44,6 @@ test("provides one template for config layout and controls", () => {
   assert.match(templateSource, /className="config-detail"/);
   assert.match(cssSource, /\.config-sidebar \{[\s\S]*?width: 240px/);
   assert.match(cssSource, /\.config-detail \{[\s\S]*?padding: 20px/);
-  assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.config-sidebar \{[\s\S]*?width: 100%/);
-  assert.match(cssSource, /@media \(max-width: 640px\)[\s\S]*?\.config-detail \{[\s\S]*?padding: 14px/);
 });
 
 test("loads settings presentation from its dedicated stylesheet", () => {

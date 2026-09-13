@@ -35,28 +35,10 @@ import {
   ConfigSidebarText,
   ConfigSplitView,
 } from "./SettingsUi";
+import type { OAuthProviderListing as OAuthProvider, ApiKeyProviderListing as ApiKeyProvider } from "@/lib/provider-listing";
 import { ProviderIcon } from "./ProviderIcon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-interface OAuthProvider {
-  id: string;
-  name: string;
-  usesCallbackServer: boolean;
-  loggedIn: boolean;
-  /** Provider also accepts an API key, so it appears in both picker sections. */
-  supportsApiKey?: boolean;
-}
-
-interface ApiKeyProvider {
-  id: string;
-  displayName: string;
-  configured: boolean;
-  source?: string;
-  modelCount: number;
-  /** Provider also supports OAuth, so it appears in both picker sections. */
-  supportsOAuth?: boolean;
-}
 
 type OAuthLoginState =
   | { phase: "idle" }

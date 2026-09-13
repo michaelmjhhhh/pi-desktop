@@ -1,3 +1,4 @@
+import { readAgentState } from "@/lib/agent-state";
 import { NextResponse } from "next/server";
 import { resolveSessionPath } from "@/lib/session-reader";
 import { startRpcSession, getRpcSession, setRpcSessionTools } from "@/lib/rpc-manager";
@@ -77,13 +78,7 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const session = getRpcSession(id);
-    if (!session || !session.isAlive()) {
-      return NextResponse.json({ running: false });
-    }
-
-    const state = await session.send({ type: "get_state" });
-    return NextResponse.json({ running: true, state });
+    return NextResponse.json(await readAgentState(id));
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
