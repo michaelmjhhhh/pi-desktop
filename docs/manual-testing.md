@@ -79,3 +79,11 @@ is available, record the check as skipped; do not count it as passed.
 - [ ] Copy and paste a message, then verify notification permission and notification-click routing on the target OS.
 - [ ] At minimum window size and different zoom levels, use menus, scroll settings, and resize panels with keyboard and pointer. Confirm the composer draft remains intact.
 - [ ] Quit and relaunch; confirm saved layout/settings return and the old backend/terminal processes have shut down.
+
+## SF Pro and sidebar clarity
+
+- [ ] On macOS, confirm navigation, messages, and composer use SF Pro; code blocks and terminal remain monospace. On other platforms, confirm the system sans-serif fallback is readable.
+- [ ] At wide and compact sizes in both themes, rapidly scroll a long session list with Files expanded and collapsed. Confirm rows stay visible, no horizontal scroll appears, and the header and Files controls remain reachable. Search sessions and clear the search; confirm scrolling still works.
+- [ ] Scroll with the pointer over the conversation marker rail; confirm history moves. Open its preview and scroll to another turn while a reply streams; confirm the preview keeps its reading position and does not scroll the underlying conversation.
+- [ ] Resize the chat with the file panel open; confirm the navigator preview fits inside the chat, its headings navigate correctly, and keyboard navigation still works.
+- [ ] Expand Usage and Process details; confirm tokens, costs, and tool output remain available. Tab to Copy and activate it; verify the copied answer. Confirm the composer and last reply have clear separation.

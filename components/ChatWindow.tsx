@@ -153,13 +153,13 @@ function ProcessDetailsGroup({ messageCount, toolCallCount, defaultExpanded = fa
           fontSize: 12,
           textAlign: "left",
         }}
-        title={expanded ? t("chat.collapseProcess") : t("chat.expandProcess")}
+        title={`${expanded ? t("chat.collapseProcess") : t("chat.expandProcess")} · ${parts.slice(1).join(" · ")}`}
       >
         <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, transform: expanded ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
           <polyline points="4 2.5 7.5 6 4 9.5" />
         </svg>
         <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {parts.join(" · ")}
+          {t("chat.processDetails")}
         </span>
       </button>
       {(expanded || reveal) && (
@@ -914,7 +914,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         {!isEmptyNew && <>
         <div
           ref={scrollContainerRef}
-          className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto pt-4 [scrollbar-width:none]"
+          className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto py-4 overscroll-contain [scrollbar-width:none]"
           style={{ visibility: pendingScrollRestore ? "hidden" : undefined }}
         >
           <div style={{ minWidth: 0, padding: `0 ${CHAT_COLUMN_PADDING}px` }}>

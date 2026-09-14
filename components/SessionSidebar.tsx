@@ -429,11 +429,11 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   const [focusedSessionId, setFocusedSessionId] = useState<string | null>(null);
   const listScrollRafRef = useRef<number | null>(null);
   const handleListScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const top = e.currentTarget.scrollTop;
+    const list = e.currentTarget;
     if (listScrollRafRef.current != null) return;
     listScrollRafRef.current = requestAnimationFrame(() => {
       listScrollRafRef.current = null;
-      setListScrollTop(top);
+      setListScrollTop(list.scrollTop);
     });
   }, []);
   useLayoutEffect(() => {
@@ -445,7 +445,13 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
     ro.observe(el);
     setListViewportH(el.clientHeight);
     setListScrollTop(el.scrollTop);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+      if (listScrollRafRef.current !== null) {
+        cancelAnimationFrame(listScrollRafRef.current);
+        listScrollRafRef.current = null;
+      }
+    };
   }, [sessionSearchActive]);
 
   const loadSessions = useCallback(async (showLoading = false, force = false) => {
@@ -1020,7 +1026,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
   );
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0, overflow: "hidden" }}>
       {customPathOpen && (
         <DirectoryPicker
           initialPath={customPathValue}
@@ -1695,7 +1701,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       <div
         ref={listScrollRef}
         onScroll={handleListScroll}
-        style={{ flex: explorerOpen && (selectedCwdProp || selectedCwd) ? "1 1 0" : "1 1 auto", overflowY: "auto", padding: "0", minHeight: 80 }}
+        style={{ flex: explorerOpen && (selectedCwdProp || selectedCwd) ? "1 1 0" : "1 1 auto", overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain", scrollbarGutter: "stable", padding: "0", minHeight: 0 }}
       >
         {loading && (
           <div style={{ padding: "16px 14px", color: "var(--text-muted)", fontSize: 12 }}>
@@ -1880,7 +1886,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
             </ToolbarIconButton>
           </div>
           {explorerOpen && (
-            <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
+            <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden", overscrollBehavior: "contain" }}>
               <FileExplorer
                 ref={fileExplorerRef}
                 cwd={selectedCwd ?? selectedCwdProp!}
@@ -2257,7 +2263,6 @@ function SessionItem({
               ) : (
                 <span title={session.modified}>{formatRelativeTime(session.modified, locale)}</span>
               )}
-              <span>{t("sidebar.messagesCount", { count: session.messageCount })}</span>
               {session.isWorktree && session.branch && (
                 <span
                   title={`Worktree: ${session.cwd}`}

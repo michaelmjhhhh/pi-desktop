@@ -250,6 +250,7 @@ export function ChatMinimap({
     gap: MAX_NODE_GAP,
     fillsHeight: false,
   });
+  const previewInteractingRef = useRef(false);
   const previewBoxRef = useRef<HTMLDivElement>(null);
   const previewItemRefs = useRef(new Map<number, HTMLDivElement>());
   const previewHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -314,6 +315,23 @@ export function ChatMinimap({
     setVisible(scrollable > 20);
     syncActiveNode(scrollEl, currentNodes);
   }, [scrollContainer, syncActiveNode]);
+
+  // The rail sits beside the scroll container, so wheel events need forwarding.
+  // The preview owns its own scrolling and must never move the conversation.
+  useEffect(() => {
+    const rail = containerRef.current;
+    if (!rail) return;
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || previewBoxRef.current?.contains(event.target as Node)) return;
+      const scrollEl = scrollContainer.current;
+      if (!scrollEl) return;
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scrollEl.clientHeight : 1;
+      scrollEl.scrollBy({ top: event.deltaY * unit, behavior: "instant" });
+    };
+    rail.addEventListener("wheel", handleWheel, { passive: false });
+    return () => rail.removeEventListener("wheel", handleWheel);
+  }, [scrollContainer, visible]);
 
   const measureThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const measureNodes = useCallback(() => {
@@ -547,6 +565,7 @@ export function ChatMinimap({
       previewHideTimerRef.current = null;
       setMinimapHovered(false);
       setMouseYRatio(null);
+      previewInteractingRef.current = false;
     }, PREVIEW_HIDE_DELAY);
   }, [cancelPreviewHide]);
 
@@ -587,7 +606,7 @@ export function ChatMinimap({
   const nearestNodeIndex = nearestNode?.index ?? null;
 
   useEffect(() => {
-    if (!minimapHovered || nearestNodeIndex === null) return;
+    if (!minimapHovered || nearestNodeIndex === null || previewInteractingRef.current) return;
     const previewBox = previewBoxRef.current;
     const previewItem = previewItemRefs.current.get(nearestNodeIndex);
     if (!previewBox || !previewItem) return;
@@ -611,6 +630,7 @@ export function ChatMinimap({
       onMouseDown={handleMouseDown}
       onMouseLeave={schedulePreviewHide}
       onMouseMove={(event) => {
+        previewInteractingRef.current = false;
         const rect = event.currentTarget.getBoundingClientRect();
         const ratio = (event.clientY - rect.top) / rect.height;
         setMouseYRatio(ratio);
@@ -642,7 +662,7 @@ export function ChatMinimap({
             aria-current={isActive ? "step" : undefined}
             aria-label={t("chatMinimap.jumpToMessage", { number: node.index + 1, preview: getUserPreview(node.targetTurn.userMessage).slice(0, 160) })}
             tabIndex={isActive || (activeIndex === null && node.index === 0) ? 0 : -1}
-            onFocus={() => { showPreview(); setMouseYRatio(node.topRatio); }}
+            onFocus={() => { previewInteractingRef.current = false; showPreview(); setMouseYRatio(node.topRatio); }}
             onClick={(event) => {
               // Pointer navigation is handled by the rail's drag gesture.
               if (event.detail === 0) scrollToNode(node, "smooth");
@@ -680,7 +700,14 @@ export function ChatMinimap({
           ref={previewBoxRef}
           className={styles.preview}
           data-minimap-preview-box=""
-          onMouseEnter={showPreview}
+          onMouseEnter={() => {
+            previewInteractingRef.current = true;
+            showPreview();
+          }}
+          onFocus={() => {
+            previewInteractingRef.current = true;
+            showPreview();
+          }}
           onMouseDown={(event) => event.stopPropagation()}
           onMouseMove={(event) => event.stopPropagation()}
         >
