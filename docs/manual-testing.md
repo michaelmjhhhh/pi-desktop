@@ -87,3 +87,11 @@ is available, record the check as skipped; do not count it as passed.
 - [ ] Scroll with the pointer over the conversation marker rail; confirm history moves. Open its preview and scroll to another turn while a reply streams; confirm the preview keeps its reading position and does not scroll the underlying conversation.
 - [ ] Resize the chat with the file panel open; confirm the navigator preview fits inside the chat, its headings navigate correctly, and keyboard navigation still works.
 - [ ] Expand Usage and Process details; confirm tokens, costs, and tool output remain available. Tab to Copy and activate it; verify the copied answer. Confirm the composer and last reply have clear separation.
+
+## Narrow chat with both side panels open
+
+- [ ] Open the sidebar and file panel, then reload with the saved wide file panel. Confirm the file panel occupies no more than half the space remaining beside the sidebar in desktop split mode.
+- [ ] Drag each divider, then resize the window across the compact/desktop breakpoint; repeat with keyboard arrows. Confirm the conversation stays usable and the file panel uses an overlay in compact windows.
+- [ ] At the narrowest chat width, check a long model name and all composer controls (thinking, tools, compact, sound). Controls should wrap inside the composer; all buttons and menus remain reachable. Repeat during streaming with Steer, Follow-up, and Stop.
+- [ ] Scroll a long answer with a wide table. Only the table should scroll horizontally; the composer remains contained and the header leaves room for the session title.
+- [ ] Repeat in both themes and with an increased chat font size. Preserve a draft while toggling panels and reloading.

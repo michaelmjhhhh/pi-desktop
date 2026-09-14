@@ -1463,8 +1463,8 @@ span.token.table {
 .workspace-threads-label { margin: 8px 14px 12px; }
 .workspace-threads-label span { font-weight: 400; letter-spacing: 0; }
 .workspace-breadcrumb {
-  display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;
-  padding: 0 18px 0 8px; font-size: 13px;
+  display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
+  padding: 0 6px; font-size: 13px;
 }
 .workspace-breadcrumb > svg { flex-shrink: 0; }
 .workspace-breadcrumb > span:not(.breadcrumb-divider) { max-width: 180px; }
@@ -1474,8 +1474,9 @@ span.token.table {
 .breadcrumb-divider { flex-shrink: 0; opacity: .5; }
 .workspace-tools-toggle {
   display: flex; align-items: center; gap: 7px; flex-shrink: 0;
-  border: 0; border-radius: 8px; padding: 7px 10px;
-  background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer; margin-right: 10px;
+  justify-content: center; width: 32px; height: 32px;
+  border: 0; border-radius: 8px; padding: 0;
+  background: transparent; color: var(--text-muted); font-size: 12px; cursor: pointer;
 }
 .workspace-tools-toggle:hover, .workspace-tools-toggle[aria-expanded="true"] { background: var(--bg-hover); color: var(--text); }
 .workspace-thread-tools { display: flex; align-items: center; height: 40px; border-bottom: 1px solid var(--border); overflow-x: auto; }
@@ -1611,3 +1612,15 @@ span.token.table {
 [data-message-role="assistant"]:hover .message-copy,
 [data-message-role="assistant"]:focus-within .message-copy { opacity: 1; }
 @media (hover: none) { .message-copy { opacity: 1; } }
+
+/* Reflow against the chat width, including a wide window with both side panels. */
+@container (max-width: 560px) {
+  .workspace-composer-input {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 10px !important;
+  }
+  .workspace-composer-input > button { align-self: flex-end; flex-shrink: 0; }
+  .workspace-composer-input > div { flex-wrap: wrap; justify-content: flex-end; max-width: 100%; }
+  .workspace-composer-controls { row-gap: 4px; }
+}

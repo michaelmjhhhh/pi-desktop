@@ -1932,12 +1932,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         {!compact && <div className="workspace-composer-controls" style={{
           marginTop: 8,
           display: "flex",
+          flexWrap: "wrap",
           alignItems: "center",
           gap: 6,
+          minWidth: 0,
         }}>
 
           {/* LEFT: attach + model selector (idle) or steer/followup toggle (streaming) */}
-          <div style={{ flex: "0 0 auto", minWidth: 0, display: "flex", alignItems: "center", gap: 2 }}>
+          <div style={{ flex: "0 1 auto", minWidth: 0, maxWidth: "100%", display: "flex", alignItems: "center", gap: 2 }}>
             <button
               onClick={() => fileInputRef.current?.click()}
              title={t("chat.attachImage")}
@@ -1979,12 +1981,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
           </div>
 
-          {/* spacer */}
-          <div style={{ flex: 1 }} />
-
           {/* RIGHT: thinking + tools preset + compact + sound (idle) | Stop + sound (streaming) */}
           <div style={{
-            flex: "0 0 auto",
+            flex: "0 1 auto",
+            minWidth: 0,
+            maxWidth: "100%",
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
@@ -1994,9 +1995,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
             <div style={{
               display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "flex-end",
+              minWidth: 0,
               alignItems: "center",
               gap: 2,
-
             }}>
             {!isStreaming && onThinkingLevelChange && (
               <div ref={thinkingDropdownRef} style={{ position: "relative" }}>
