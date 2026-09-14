@@ -1751,8 +1751,8 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     position: "absolute",
                     top: index * SESSION_LIST_ITEM_HEIGHT + (selectedFamilyIndex >= 0 && index > selectedFamilyIndex ? selectedCardExtraHeight : 0),
                     height: index === selectedFamilyIndex ? SELECTED_SESSION_ITEM_HEIGHT : SESSION_LIST_ITEM_HEIGHT,
-                    left: 8,
-                    right: 4,
+                    left: 14,
+                    right: 10,
                   }}
                 >
                   <SessionItem

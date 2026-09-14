@@ -1451,8 +1451,8 @@ span.token.table {
 .workspace-search > svg { flex-shrink: 0; margin-inline: 1px; color: var(--text-dim); }
 .workspace-section-label {
   display: flex; align-items: center; justify-content: space-between;
-  color: var(--text-dim); font-size: 11px; font-weight: 600;
-  letter-spacing: .06em; text-transform: uppercase; padding: 0 10px; margin-bottom: 9px;
+  color: var(--text-dim); font-size: 12px; font-weight: 500;
+  line-height: 20px; letter-spacing: 0; padding: 0 10px; margin-bottom: 9px;
 }
 .workspace-project-picker {
   background: transparent !important; border-color: transparent !important;
@@ -1460,7 +1460,6 @@ span.token.table {
 }
 .workspace-project-picker:hover { background: var(--bg-hover) !important; }
 .workspace-project-picker span { font-family: inherit !important; font-size: 13px !important; }
-.workspace-threads-label { margin: 8px 14px 12px; }
 .workspace-threads-label span { font-weight: 400; letter-spacing: 0; }
 .workspace-breadcrumb {
   display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;
@@ -1509,7 +1508,6 @@ span.token.table {
 .workspace-navigation-actions .workspace-search { flex: 1; min-width: 0; width: auto !important; }
 .workspace-navigation-actions .workspace-new-thread { width: 36px !important; padding: 0 !important; justify-content: center !important; font-size: 0 !important; }
 .workspace-new-thread svg { width: 18px; height: 18px; }
-.workspace-section-label { line-height: 20px; letter-spacing: .08em; }
 .workspace-project-row { display: flex; align-items: center; gap: 4px; }
 .workspace-project-picker { flex: 1; min-width: 0; width: auto !important; }
 .workspace-project-chevron { margin-left: 8px; color: var(--text-dim); font-size: 18px !important; line-height: 1; }
@@ -1627,12 +1625,8 @@ span.token.table {
 
 /* Thread cards: quiet list rows, with context reserved for the selected thread. */
 .workspace-threads-label {
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 12px;
-  font-weight: 500;
   gap: 10px;
-  margin: 8px 6px 8px;
+  margin: 8px 14px 8px;
   flex-shrink: 0;
 }
 .workspace-threads-label::after { content: ""; height: 1px; background: var(--border); flex: 1; order: 1; }
@@ -1643,7 +1637,7 @@ span.token.table {
   align-items: center;
   gap: 6px;
   height: calc(100% - 4px);
-  padding: 10px 12px;
+  padding: 10px;
   border-radius: 12px;
   color: var(--text-muted);
   transition: background 120ms ease;
