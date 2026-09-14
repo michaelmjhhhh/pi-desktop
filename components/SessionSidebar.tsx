@@ -15,14 +15,19 @@ import { DirectoryPicker } from "./DirectoryPicker";
 import { FileExplorer, type FileExplorerHandle } from "./FileExplorer";
 import { SessionSearch } from "./SessionSearch";
 
-// Fixed row height for the session list. SessionItem renders at exactly this
-// height, so the list can be windowed (only the visible slice is mounted).
+// Compact rows share one height; the selected card has room for project details.
 const SESSION_LIST_ITEM_HEIGHT = 54;
+const SELECTED_SESSION_ITEM_HEIGHT = 92;
 
-export function getSessionListIndices(count: number, scrollTop: number, viewportHeight: number, focusedIndex = -1): number[] {
+export function getSessionListIndices(count: number, scrollTop: number, viewportHeight: number, focusedIndex = -1, selectedIndex = -1): number[] {
+  // Convert the taller selected card to the compact-row coordinate space.
+  const uniformScrollTop = selectedIndex < 0 ? scrollTop : scrollTop - Math.min(
+    SELECTED_SESSION_ITEM_HEIGHT - SESSION_LIST_ITEM_HEIGHT,
+    Math.max(0, scrollTop - selectedIndex * SESSION_LIST_ITEM_HEIGHT),
+  );
   const overscan = 8;
   const visibleCount = Math.ceil((viewportHeight || 600) / SESSION_LIST_ITEM_HEIGHT) + overscan * 2;
-  const start = Math.max(0, Math.min(Math.floor(scrollTop / SESSION_LIST_ITEM_HEIGHT) - overscan, count - visibleCount));
+  const start = Math.max(0, Math.min(Math.floor(uniformScrollTop / SESSION_LIST_ITEM_HEIGHT) - overscan, count - visibleCount));
   const end = Math.min(count, start + visibleCount);
   const indices = Array.from({ length: end - start }, (_, offset) => start + offset);
   // Keep a focused row mounted so scrolling cannot discard an inline rename.
@@ -1017,12 +1022,17 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
       : null);
 
   const sessionFamilies = listSessionFamilies(filteredSessions);
+  const selectedFamilyIndex = sessionFamilies.findIndex((family) => (
+    [family.root, ...family.subagents].some((session) => session.id === selectedSessionId)
+  ));
+  const selectedCardExtraHeight = selectedFamilyIndex < 0 ? 0 : SELECTED_SESSION_ITEM_HEIGHT - SESSION_LIST_ITEM_HEIGHT;
 
   const virtualIndices = getSessionListIndices(
     sessionFamilies.length,
     listScrollTop,
     listViewportH,
     sessionFamilies.findIndex((family) => family.root.id === focusedSessionId),
+    selectedFamilyIndex,
   );
 
   return (
@@ -1722,7 +1732,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
           <div
             style={{
               position: "relative",
-              height: sessionFamilies.length * SESSION_LIST_ITEM_HEIGHT,
+              height: sessionFamilies.length * SESSION_LIST_ITEM_HEIGHT + selectedCardExtraHeight,
             }}
           >
             {virtualIndices.map((index) => {
@@ -1737,7 +1747,13 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   key={family.root.id}
                   onFocus={() => setFocusedSessionId(family.root.id)}
                   onBlur={() => setFocusedSessionId(null)}
-                  style={{ position: "absolute", top: index * SESSION_LIST_ITEM_HEIGHT, left: 0, right: 0 }}
+                  style={{
+                    position: "absolute",
+                    top: index * SESSION_LIST_ITEM_HEIGHT + (selectedFamilyIndex >= 0 && index > selectedFamilyIndex ? selectedCardExtraHeight : 0),
+                    height: index === selectedFamilyIndex ? SELECTED_SESSION_ITEM_HEIGHT : SESSION_LIST_ITEM_HEIGHT,
+                    left: 8,
+                    right: 4,
+                  }}
                 >
                   <SessionItem
                     session={displaySession}
@@ -2015,6 +2031,16 @@ function showProjectActivity(
   );
 }
 
+function formatThreadAge(date: string, locale: string): string {
+  const elapsed = Math.max(0, Date.now() - new Date(date).getTime());
+  if (!Number.isFinite(elapsed)) return "";
+  const [unit, divisor]: [string, number] = elapsed < 3_600_000 ? ["minute", 60_000]
+    : elapsed < 86_400_000 ? ["hour", 3_600_000] : ["day", 86_400_000];
+  return new Intl.NumberFormat(locale, {
+    style: "unit", unit, unitDisplay: "narrow",
+  }).format(Math.max(1, Math.floor(elapsed / divisor)));
+}
+
 function SessionItem({
   session,
   isSelected,
@@ -2041,7 +2067,6 @@ function SessionItem({
   onToggleCollapse?: () => void;
 }) {
   const { locale, t } = useI18n();
-  const [hovered, setHovered] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -2136,31 +2161,17 @@ function SessionItem({
     e.stopPropagation();
   }, [onRenamed, session.cwd, session.id, session.name, session.path]);
 
-  // Fixed-height outer wrapper — content swaps in place so the list never reflows
+  const projectPath = session.projectRoot || session.cwd;
+  const projectName = projectPath.split(/[\\/]/).filter(Boolean).pop() || projectPath;
+
+  // Actions use a fixed trailing slot, so hovering never shortens the title.
   return (
     <div
-      onClick={confirmDelete || renaming ? undefined : onClick}
+      className="thread-row"
+      data-selected={isSelected || undefined}
+      data-editing={renaming || confirmDelete || undefined}
       onContextMenu={confirmDelete || renaming ? undefined : handleContextMenu}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); }}
-      style={{
-        height: SESSION_LIST_ITEM_HEIGHT,
-        display: "flex",
-        alignItems: "center",
-        paddingLeft: depth > 0 ? depth * 12 + 14 : 14,
-        paddingRight: 8,
-        cursor: confirmDelete || renaming ? "default" : "pointer",
-        background: confirmDelete
-          ? "rgba(239,68,68,0.06)"
-          : isSelected ? "var(--bg-selected)" : hovered ? "var(--bg-hover)" : "transparent",
-        borderLeft: confirmDelete
-          ? "2px solid #ef4444"
-          : isSelected ? "2px solid var(--accent)" : "2px solid transparent",
-        transition: "background 0.1s",
-        opacity: deleting ? 0.5 : 1,
-        gap: 6,
-        overflow: "hidden",
-      }}
+      style={{ opacity: deleting ? 0.5 : 1, marginLeft: depth * 12 }}
     >
       {confirmDelete ? (
         /* ── Delete confirmation: same height, two flat buttons ── */
@@ -2173,10 +2184,10 @@ function SessionItem({
               onClick={handleDeleteConfirm}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-                height: 30, padding: "0 11px",
+                height: 28, padding: "0 7px",
                 background: "#ef4444", border: "none",
                 borderRadius: 6, color: "#fff",
-                cursor: "pointer", fontSize: 12, fontWeight: 600,
+                cursor: "pointer", fontSize: 11, fontWeight: 600,
                 whiteSpace: "nowrap",
               }}
             >
@@ -2192,10 +2203,10 @@ function SessionItem({
               onClick={handleDeleteCancel}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
-                height: 30, padding: "0 11px",
+                height: 28, padding: "0 7px",
                 background: "var(--bg)", border: "1px solid var(--border)",
                 borderRadius: 6, color: "var(--text-muted)",
-                cursor: "pointer", fontSize: 12, fontWeight: 500,
+                cursor: "pointer", fontSize: 11, fontWeight: 500,
                 whiteSpace: "nowrap",
               }}
             >
@@ -2217,6 +2228,7 @@ function SessionItem({
           autoFocus
           style={{
             flex: 1,
+            minWidth: 0,
             fontSize: 12,
             padding: "5px 8px",
             border: "1px solid var(--accent)",
@@ -2230,54 +2242,33 @@ function SessionItem({
       ) : (
         /* ── Normal view ── */
         <>
-          {/* Subagent indicator for child sessions */}
-          {depth > 0 && (
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-              <rect x="5" y="7" width="14" height="11" rx="2" />
-              <path d="M9 11h.01M15 11h.01M9 15h6M12 7V4M10 4h4" />
-            </svg>
-          )}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                minWidth: 0,
-                fontSize: 12,
-                fontWeight: isSelected ? 500 : 400,
-                lineHeight: 1.4,
-                color: "var(--text)",
-              }}
-              title={title}
-            >
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
-                {title}
-              </span>
-            </div>
-            <div style={{ marginTop: 2, display: "flex", alignItems: "center", gap: 8, color: "var(--text-dim)", fontSize: 11, minWidth: 0 }}>
-              {isRunning ? (
-                <RunningSessionIndicator />
-              ) : isUnread ? (
-                <UnreadSessionIndicator />
-              ) : (
-                <span title={session.modified}>{formatRelativeTime(session.modified, locale)}</span>
-              )}
-              {session.isWorktree && session.branch && (
-                <span
-                  title={`Worktree: ${session.cwd}`}
-                  style={{ display: "flex", alignItems: "center", gap: 3, color: "var(--accent)", minWidth: 0, overflow: "hidden" }}
-                >
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                    <line x1="6" y1="3" x2="6" y2="15" />
-                    <circle cx="18" cy="6" r="3" />
-                    <circle cx="6" cy="18" r="3" />
-                    <path d="M18 9a9 9 0 0 1-9 9" />
-                  </svg>
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{session.branch}</span>
-                </span>
-              )}
-            </div>
+          <button
+            type="button"
+            className="thread-open"
+            onClick={onClick}
+            aria-current={isSelected ? "page" : undefined}
+            aria-label={title}
+            title={title}
+          />
+          <div className="thread-body">
+            {isSelected ? (
+              <>
+                <div className="thread-project">
+                  <span className="thread-folder"><FolderIcon size={16} /></span>
+                  <span className="thread-project-name">{projectName}</span>
+                  <span className="thread-status">{isRunning ? <RunningSessionIndicator /> : isUnread ? <UnreadSessionIndicator /> : null}</span>
+                  <time className="thread-time" dateTime={session.modified} aria-label={formatRelativeTime(session.modified, locale)}>{formatThreadAge(session.modified, locale)}</time>
+                </div>
+                <div className="thread-title">{title}</div>
+                <div className="thread-branch">{session.branch || session.cwd}</div>
+              </>
+            ) : (
+              <div className="thread-compact">
+                <span className="thread-folder">{isRunning ? <RunningSessionIndicator /> : isUnread ? <UnreadSessionIndicator /> : <FolderIcon size={16} />}</span>
+                <span className="thread-title">{title}</span>
+                <time className="thread-time" dateTime={session.modified} aria-label={formatRelativeTime(session.modified, locale)}>{formatThreadAge(session.modified, locale)}</time>
+              </div>
+            )}
           </div>
 
           {/* Collapse toggle — always visible when has children */}
@@ -2287,6 +2278,7 @@ function SessionItem({
               title={t(collapsed ? "sidebar.expandSubagents" : "sidebar.collapseSubagents")}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
+                position: "relative", zIndex: 2,
                 width: 20, height: 20, padding: 0, flexShrink: 0,
                 background: "none", border: "none",
                 color: "var(--text-dim)", cursor: "pointer",
@@ -2300,57 +2292,14 @@ function SessionItem({
             </button>
           )}
 
-          {/* Action buttons — shown on hover */}
-          {hovered && !session.transient && (
-            <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-              <button
-                onClick={startRename}
-                title={t("sidebar.rename")}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 32, height: 32, padding: 0,
-                  background: "var(--bg-hover)", border: "1px solid var(--border)",
-                  borderRadius: 7, color: "var(--text-muted)",
-                  cursor: "pointer", flexShrink: 0,
-                  transition: "background 0.12s, color 0.12s, border-color 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--bg-selected)";
-                  e.currentTarget.style.color = "var(--accent)";
-                  e.currentTarget.style.borderColor = "rgba(37,99,235,0.35)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                  e.currentTarget.style.color = "var(--text-muted)";
-                  e.currentTarget.style.borderColor = "var(--border)";
-                }}
-              >
+          {!session.transient && (
+            <div className="thread-actions">
+              <button type="button" onClick={startRename} title={t("sidebar.rename")} aria-label={t("sidebar.rename")}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                 </svg>
               </button>
-              <button
-                onClick={handleDeleteClick}
-                title={t("sidebar.deleteWithShiftClick")}
-                style={{
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  width: 32, height: 32, padding: 0,
-                  background: "var(--bg-hover)", border: "1px solid var(--border)",
-                  borderRadius: 7, color: "var(--text-muted)",
-                  cursor: "pointer", flexShrink: 0,
-                  transition: "background 0.12s, color 0.12s, border-color 0.12s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(239,68,68,0.08)";
-                  e.currentTarget.style.color = "#ef4444";
-                  e.currentTarget.style.borderColor = "rgba(239,68,68,0.35)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "var(--bg-hover)";
-                  e.currentTarget.style.color = "var(--text-muted)";
-                  e.currentTarget.style.borderColor = "var(--border)";
-                }}
-              >
+              <button type="button" className="thread-delete" onClick={handleDeleteClick} title={t("sidebar.deleteWithShiftClick")} aria-label={t("sidebar.delete")}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 6 5 6 21 6" />
                   <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />

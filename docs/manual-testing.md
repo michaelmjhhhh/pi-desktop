@@ -95,3 +95,11 @@ is available, record the check as skipped; do not count it as passed.
 - [ ] At the narrowest chat width, check a long model name and all composer controls (thinking, tools, compact, sound). Controls should wrap inside the composer; all buttons and menus remain reachable. Repeat during streaming with Steer, Follow-up, and Stop.
 - [ ] Scroll a long answer with a wide table. Only the table should scroll horizontally; the composer remains contained and the header leaves room for the session title.
 - [ ] Repeat in both themes and with an increased chat font size. Preserve a draft while toggling panels and reloading.
+
+## Thread sidebar cards
+
+- [ ] Select several threads: the selected row becomes a rounded project/title/branch card, while other rows show one title line and a short age. Confirm the correct thread opens with mouse and keyboard.
+- [ ] Hover and Tab through rows: small rename/delete actions replace the trailing timestamp without shifting or shortening the title. Rename a disposable thread and cancel a rename with Escape. Delete another disposable thread and verify Cancel and Shift+click behavior.
+- [ ] With many threads, scroll rapidly past the selected card at the top, middle, and end of the list. Confirm no gaps, overlaps, or missing rows, including while an inline rename has focus.
+- [ ] Narrow the sidebar to its minimum width and repeat in both themes. Check long project names, titles, branches, and the delete confirmation. Running/unread indicators should remain visible.
+- [ ] Search and clear the query; switch projects, reload, and confirm selection and the existing sidebar scroll behavior remain usable.
