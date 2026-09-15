@@ -9,6 +9,7 @@ import {
   invalidateSessionPathCache,
   invalidateSessionListCache,
   buildSessionContext,
+  buildSessionNavigation,
   readSessionHeader,
 } from "@/lib/session-reader";
 import { sessionPathKey } from "@/lib/session-path";
@@ -99,6 +100,7 @@ export async function GET(
       leafId,
       tree,
       context,
+      navigation: buildSessionNavigation(entries as never, leafId),
       stats,
       totalActiveMs,
       ...(toolNames !== undefined ? { toolNames } : {}),

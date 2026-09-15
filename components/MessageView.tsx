@@ -384,9 +384,9 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
             flex: 1,
             minWidth: 0,
             background: "var(--user-bg)",
-            border: "1px solid rgba(59,130,246,0.2)",
-            borderRadius: 12,
-            padding: "8px 12px",
+            border: "1px solid transparent",
+            borderRadius: 16,
+            padding: "10px 14px",
             fontSize: "calc(14px + var(--chat-font-size-offset, 0px))",
             lineHeight: 1.6,
             color: "var(--text)",
@@ -611,7 +611,6 @@ function AssistantMessageView({
     .filter(({ block }) => !isEmptyThinkingBlock(block, { isStreaming })), [message.content, isStreaming]);
   const blocks = useMemo(() => blockItems.map(({ block }) => block), [blockItems]);
   const providerError = getAssistantErrorMessage(message, { isStreaming });
-  const [hovered, setHovered] = useState(false);
   const [copied, setCopied] = useState(false);
   const streamStartRef = useRef<number | null>(null);
   const [tps, setTps] = useState<number | null>(null);
@@ -735,8 +734,6 @@ function AssistantMessageView({
       data-message-role="assistant"
       data-entry-id={entryId}
       style={{ marginBottom: 16 }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
     >
       {/* Model label */}
       <div
@@ -766,9 +763,8 @@ function AssistantMessageView({
                     {est}
                   </span>
                   {tps !== null && (() => {
-                    const bg = tps >= 50 ? "#53b3cb" : tps >= 30 ? "#9bc53d" : tps >= 15 ? "#f9c22e" : "#e01a4f";
                     return (
-                      <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 4, background: bg, color: "#fff", fontSize: 11, fontWeight: 400 }}>
+                      <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 4, background: "var(--bg-hover)", color: "var(--text-muted)", fontSize: 11, fontWeight: 400 }}>
                         {tps.toFixed(1)} t/s
                       </span>
                     );
@@ -811,17 +807,17 @@ function AssistantMessageView({
         <TurnWrittenFiles files={writtenFiles} onOpenFile={onOpenFile} />
       )}
 
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8, marginTop: 4,
-      }}>
+      <div className="message-footer">
         {message.usage && !isStreaming && (
-          <div style={{ fontSize: 11, color: "var(--text-dim)" }}>
-            {formatUsage(message.usage)}
-          </div>
+          <details className="message-usage">
+            <summary>{t("chat.usageDetails")}</summary>
+            <p>{formatUsage(message.usage)}</p>
+          </details>
         )}
         {textContent && !isStreaming && (
           <button
             onClick={copyContent}
+            className="message-copy"
              title={t("i18n.copyMessage")}
             style={{
               display: "flex", alignItems: "center", gap: 4,
@@ -832,8 +828,6 @@ function AssistantMessageView({
               cursor: "pointer",
               fontSize: 11, fontWeight: 400,
               whiteSpace: "nowrap",
-              opacity: hovered ? 1 : 0,
-              pointerEvents: hovered ? "auto" : "none",
               transition: "opacity 0.12s, color 0.12s",
             }}
             onMouseEnter={(e) => { if (!copied) e.currentTarget.style.color = "var(--accent)"; }}

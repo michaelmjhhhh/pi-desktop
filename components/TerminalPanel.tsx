@@ -51,16 +51,29 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
       scrollback: 8000,
       screenReaderMode: true,
       disableStdin: true,
-      theme: {
-        background: "#111318", foreground: "#d7dce5", cursor: "#60a5fa",
-        selectionBackground: "#365b8a",
-        black: "#1d222b", red: "#f87171", green: "#4ade80", yellow: "#facc15",
-        blue: "#60a5fa", magenta: "#c084fc", cyan: "#22d3ee", white: "#e5e7eb",
-        brightBlack: "#6b7280", brightRed: "#fca5a5", brightGreen: "#86efac",
-        brightYellow: "#fde047", brightBlue: "#93c5fd", brightMagenta: "#d8b4fe",
-        brightCyan: "#67e8f9", brightWhite: "#ffffff",
-      },
     });
+    const syncTerminalTheme = () => {
+      const style = getComputedStyle(container);
+      const dark = document.documentElement.classList.contains("dark");
+      terminal.options.theme = {
+        background: style.getPropertyValue("--bg").trim(),
+        foreground: style.getPropertyValue("--text").trim(),
+        cursor: style.getPropertyValue("--accent").trim(),
+        selectionBackground: dark ? "#343a47" : "#d0d6dd",
+        black: dark ? "#1e1e1e" : "#27272a",
+        red: dark ? "#ff6467" : "#c10007", green: dark ? "#86d99c" : "#18713a",
+        yellow: dark ? "#f4d079" : "#8c6500", blue: dark ? "#8ab4ff" : "#1b4ed8",
+        magenta: dark ? "#d8a5ed" : "#8542a4", cyan: dark ? "#80caca" : "#087478",
+        white: dark ? "#dedede" : "#555555", brightBlack: "#818181",
+        brightRed: dark ? "#ff8585" : "#b91c1c", brightGreen: dark ? "#a5e6b5" : "#15803d",
+        brightYellow: dark ? "#ffe099" : "#866200", brightBlue: dark ? "#b4cbff" : "#2456c8",
+        brightMagenta: dark ? "#e4bcf2" : "#9333a8", brightCyan: dark ? "#ade1e1" : "#0e7490",
+        brightWhite: dark ? "#ffffff" : "#3f3f46",
+      };
+    };
+    syncTerminalTheme();
+    const themeObserver = new MutationObserver(syncTerminalTheme);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
     terminalRef.current = terminal;
     const fit = new FitAddon();
     terminal.loadAddon(fit);
@@ -166,6 +179,7 @@ export function TerminalPanel({ tab, active, onRestart, onClosed, onCloseError }
       events?.close();
       void writer.stop();
       resizeObserver.disconnect();
+      themeObserver.disconnect();
       onData.dispose();
       onResize.dispose();
       window.removeEventListener("pagehide", pageHide);

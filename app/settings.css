@@ -779,7 +779,7 @@
   flex-shrink: 0;
   align-items: center;
   gap: 16px;
-  min-height: 60px;
+  min-height: var(--workspace-header-height);
   padding: 0 18px 0 24px;
   border-bottom: 1px solid var(--border);
 }
@@ -802,7 +802,7 @@
   padding: 22px 12px;
   overflow-y: auto;
   border-right: 1px solid var(--border);
-  background: var(--bg-panel);
+  background: var(--sidebar-bg);
 }
 
 .settings-navigation-group + .settings-navigation-group {
@@ -821,8 +821,8 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 40px;
-  margin-top: 4px;
+  min-height: 36px;
+  margin-top: 2px;
   padding: 8px 10px;
   border: 1px solid transparent;
   border-radius: 7px;
@@ -834,10 +834,10 @@
 }
 
 .settings-navigation-item[aria-current="page"] {
-  border-color: var(--border);
-  background: var(--bg);
+  border-color: transparent;
+  background: var(--sidebar-selected);
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .settings-navigation-item:not(:disabled):hover {
@@ -907,10 +907,11 @@
 }
 
 .settings-general-section {
-  margin-top: 16px;
-  padding: 18px 22px 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  margin-top: 24px;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
 }
 
 .settings-general-heading {

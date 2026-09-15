@@ -79,3 +79,57 @@ is available, record the check as skipped; do not count it as passed.
 - [ ] Copy and paste a message, then verify notification permission and notification-click routing on the target OS.
 - [ ] At minimum window size and different zoom levels, use menus, scroll settings, and resize panels with keyboard and pointer. Confirm the composer draft remains intact.
 - [ ] Quit and relaunch; confirm saved layout/settings return and the old backend/terminal processes have shut down.
+
+## SF Pro and sidebar clarity
+
+- [ ] On macOS, confirm navigation, messages, and composer use SF Pro; code blocks and terminal remain monospace. On other platforms, confirm the system sans-serif fallback is readable.
+- [ ] At wide and compact sizes in both themes, rapidly scroll a long session list with Files expanded and collapsed. Confirm rows stay visible, no horizontal scroll appears, and the header and Files controls remain reachable. Search sessions and clear the search; confirm scrolling still works.
+- [ ] Scroll with the pointer over the conversation marker rail; confirm history moves. Open its preview and scroll to another turn while a reply streams; confirm the preview keeps its reading position and does not scroll the underlying conversation.
+- [ ] Resize the chat with the file panel open; confirm the navigator preview fits inside the chat, its headings navigate correctly, and keyboard navigation still works.
+- [ ] Expand Usage and Process details; confirm tokens, costs, and tool output remain available. Tab to Copy and activate it; verify the copied answer. Confirm the composer and last reply have clear separation.
+
+## Narrow chat with both side panels open
+
+- [ ] Open the sidebar and file panel, then reload with the saved wide file panel. Confirm the file panel occupies no more than half the space remaining beside the sidebar in desktop split mode.
+- [ ] Drag each divider, then resize the window across the compact/desktop breakpoint; repeat with keyboard arrows. Confirm the conversation stays usable and the file panel uses an overlay in compact windows.
+- [ ] At the narrowest chat width, check a long model name and all composer controls (thinking, tools, compact, sound). Controls should wrap inside the composer; all buttons and menus remain reachable. Repeat during streaming with Steer, Follow-up, and Stop.
+- [ ] Scroll a long answer with a wide table. Only the table should scroll horizontally; the composer remains contained and the header leaves room for the session title.
+- [ ] Repeat in both themes and with an increased chat font size. Preserve a draft while toggling panels and reloading.
+
+## Thread sidebar cards
+
+- [ ] Select several threads: the selected row becomes a rounded project/title/branch card, while other rows show one title line and a short age. Confirm the correct thread opens with mouse and keyboard.
+- [ ] Hover and Tab through rows: small rename/delete actions replace the trailing timestamp without shifting or shortening the title. Rename a disposable thread and cancel a rename with Escape. Delete another disposable thread and verify Cancel and Shift+click behavior.
+- [ ] With many threads, scroll rapidly past the selected card at the top, middle, and end of the list. Confirm no gaps, overlaps, or missing rows, including while an inline rename has focus.
+- [ ] Narrow the sidebar to its minimum width and repeat in both themes. Check long project names, titles, branches, and the delete confirmation. Running/unread indicators should remain visible.
+- [ ] Search and clear the query; switch projects, reload, and confirm selection and the existing sidebar scroll behavior remain usable.
+
+## Reference sidebar structure
+
+- [ ] Confirm Search and the project picker are the only top navigation rows. The default filter is All projects; selecting one filters the threads correctly. New thread and Add project remain functional.
+- [ ] Confirm selected/running/unread session families appear as full cards above Settled. Select a settled thread and confirm it becomes a full card; read a background completion and confirm its unread indicator clears.
+- [ ] Collapse and expand Settled with mouse and keyboard. Scroll a long list with several full cards above it; no gaps or overlapping rows should appear. Rename/delete a disposable settled thread and cancel the action.
+- [ ] Select a git project, reopen its project menu, and use the embedded worktree picker. Confirm worktree creation, cancellation, and switching are still reachable without clipping the menu.
+- [ ] Compare spacing and alignment to the supplied screenshot at normal/minimum sidebar widths in both themes. Confirm font size, timestamps, selected card, and the Settled divider remain readable.
+
+## T3 Code inspired visual system
+
+- [ ] Compare the sidebar, header, chat, file tabs, and settings in both themes: compact controls, neutral message surfaces, a raised composer, and consistent borders. SF Pro should be used for UI on macOS; code and terminal should remain monospace.
+- [ ] Open composer Options; change the tool preset, compact a disposable session, and close with Escape/outside click. Confirm keyboard focus returns on Escape. Model/reasoning controls and streaming Stop remain directly reachable.
+- [ ] Narrow the chat with both panels open, including a long model name. Composer controls and the Options popup should fit without clipping.
+- [ ] Open a terminal, run a command, and switch themes while it is running. Colors should update without reconnecting the terminal or losing output.
+- [ ] Open General and model settings, switch sections, and dismiss/reopen. Confirm unsaved input, focus, selected navigation, and normal save/cancel behavior remain intact.
+
+### Focused message navigation preview
+
+- Hover different message markers: only the pointed user prompt and its latest related reply appear in a compact card; unrelated turns stay hidden.
+- Move into the card, then click its prompt or reply outline: the card remains usable and the conversation jumps to the corresponding message.
+- Use Tab and arrow keys on the rail, then Escape: the preview follows keyboard focus and closes with Escape.
+- Resize the chat with the file panel open and inspect markers near the top/bottom: the card stays within the chat, with internal scrolling for long outlines.
+
+### Full-session message rail
+
+- Open a long session directly at the latest message: the rail should show all turns immediately, without scrolling upward first.
+- Scroll upward through additional history pages: existing markers should retain their count and order.
+- Hover an old marker, then click it: its focused preview appears, history loads, and the chat jumps to that turn. Check both prompt and reply targets.
+- Switch branches and sessions, then send a new message: the rail should represent only the selected conversation and add new turns without duplicates.

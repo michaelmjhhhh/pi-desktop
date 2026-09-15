@@ -17,7 +17,9 @@ interface Props {
   streamingMessage: Partial<AgentMessage> | null;
   scrollContainer: RefObject<HTMLDivElement | null>;
   messageRefs: RefObject<(HTMLDivElement | null)[]>;
-  onRevealHistory: () => void;
+  entryIds: string[];
+  navigation?: { entryId: string; message: AgentMessage }[];
+  onRevealHistory: (entryId?: string) => void;
 }
 
 const MINIMAP_WIDTH = 36;
@@ -32,6 +34,7 @@ interface AssistantPreview {
 }
 
 interface TurnInfo {
+  entryId?: string;
   userMessage: UserMessage | CustomMessage;
   assistantPreviews: AssistantPreview[];
   scrollTop: number | null;
@@ -230,6 +233,8 @@ function layoutNodes(allNodes: NodeInfo[], minimapHeight: number): NodeLayout {
 
 export function ChatMinimap({
   messages,
+  entryIds,
+  navigation,
   streamingMessage,
   scrollContainer,
   messageRefs,
@@ -250,8 +255,8 @@ export function ChatMinimap({
     gap: MAX_NODE_GAP,
     fillsHeight: false,
   });
+  const previewInteractingRef = useRef(false);
   const previewBoxRef = useRef<HTMLDivElement>(null);
-  const previewItemRefs = useRef(new Map<number, HTMLDivElement>());
   const previewHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeNodeLockRef = useRef<{ index: number; until: number } | null>(null);
   const pendingNavigationRef = useRef<{
@@ -261,10 +266,18 @@ export function ChatMinimap({
     headingIndex?: number;
   } | null>(null);
 
+  const historyPrefix = useMemo(() => {
+    if (!navigation || !entryIds.length) return [];
+    const firstLoaded = new Set(entryIds);
+    const boundary = navigation.findIndex((item) => firstLoaded.has(item.entryId));
+    return boundary < 0 ? navigation : navigation.slice(0, boundary);
+  }, [navigation, entryIds]);
   const allMessages = useMemo(
-    () => (streamingMessage ? [...messages, streamingMessage] : messages) as (AgentMessage | Partial<AgentMessage>)[],
-    [messages, streamingMessage],
+    () => [...historyPrefix.map((item) => item.message), ...messages, ...(streamingMessage ? [streamingMessage] : [])],
+    [historyPrefix, messages, streamingMessage],
   );
+  const navigationDataRef = useRef({ historyPrefix, entryIds });
+  navigationDataRef.current = { historyPrefix, entryIds };
   const allMessagesRef = useRef(allMessages);
   allMessagesRef.current = allMessages;
 
@@ -315,6 +328,23 @@ export function ChatMinimap({
     syncActiveNode(scrollEl, currentNodes);
   }, [scrollContainer, syncActiveNode]);
 
+  // The rail sits beside the scroll container, so wheel events need forwarding.
+  // The preview owns its own scrolling and must never move the conversation.
+  useEffect(() => {
+    const rail = containerRef.current;
+    if (!rail) return;
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || previewBoxRef.current?.contains(event.target as Node)) return;
+      const scrollEl = scrollContainer.current;
+      if (!scrollEl) return;
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? scrollEl.clientHeight : 1;
+      scrollEl.scrollBy({ top: event.deltaY * unit, behavior: "instant" });
+    };
+    rail.addEventListener("wheel", handleWheel, { passive: false });
+    return () => rail.removeEventListener("wheel", handleWheel);
+  }, [scrollContainer, visible]);
+
   const measureThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const measureNodes = useCallback(() => {
     if (measureThrottleRef.current) return;
@@ -330,16 +360,19 @@ export function ChatMinimap({
       let refIndex = 0;
       let currentTurn: TurnInfo | null = null;
 
-      for (const message of allMessagesRef.current) {
+      const { historyPrefix, entryIds } = navigationDataRef.current;
+      for (const [messageIndex, message] of allMessagesRef.current.entries()) {
         const isAnchor = isMessageGroupAnchor(message);
         if (!isAnchor && message.role !== "assistant") continue;
-        const element = refs?.[refIndex];
-        refIndex++;
+        const isHistorical = messageIndex < historyPrefix.length;
+        const element = isHistorical ? null : refs?.[refIndex];
+        if (!isHistorical) refIndex++;
 
         if (isAnchor) {
           currentTurn = null;
           const elementRect = element?.getBoundingClientRect();
           currentTurn = {
+            entryId: isHistorical ? historyPrefix[messageIndex].entryId : entryIds[messageIndex - historyPrefix.length],
             userMessage: message as UserMessage | CustomMessage,
             assistantPreviews: [],
             scrollTop: elementRect
@@ -436,7 +469,7 @@ export function ChatMinimap({
       updateScroll();
     }, 50);
     return () => clearTimeout(timeout);
-  }, [messages.length, measureNodes, updateScroll]);
+  }, [allMessages, measureNodes, updateScroll]);
 
   const scrollToNode = useCallback((node: NodeInfo, behavior: ScrollBehavior) => {
     const scrollEl = scrollContainer.current;
@@ -444,7 +477,7 @@ export function ChatMinimap({
     lockActiveNode(node.index);
     if (node.targetTurn.scrollTop === null) {
       pendingNavigationRef.current = { nodeIndex: node.index, target: "user" };
-      onRevealHistory();
+      onRevealHistory(node.targetTurn.entryId);
       return;
     }
     const targetTop = Math.max(
@@ -464,7 +497,7 @@ export function ChatMinimap({
         target: "assistant",
         assistantIndex,
       };
-      onRevealHistory();
+      onRevealHistory(node.targetTurn.entryId);
       return;
     }
     const containerRect = scrollEl.getBoundingClientRect();
@@ -513,7 +546,7 @@ export function ChatMinimap({
         assistantIndex,
         headingIndex,
       };
-      onRevealHistory();
+      onRevealHistory(node.targetTurn.entryId);
       return;
     }
     const heading = answerElement.querySelectorAll<HTMLElement>("h1, h2, h3").item(headingIndex);
@@ -547,6 +580,7 @@ export function ChatMinimap({
       previewHideTimerRef.current = null;
       setMinimapHovered(false);
       setMouseYRatio(null);
+      previewInteractingRef.current = false;
     }, PREVIEW_HIDE_DELAY);
   }, [cancelPreviewHide]);
 
@@ -572,6 +606,7 @@ export function ChatMinimap({
     jumpToPointer(event.clientY, "smooth");
     const onMove = (moveEvent: MouseEvent) => {
       if (!draggingRef.current) return;
+      setMouseYRatio(Math.max(0, Math.min(1, (moveEvent.clientY - rect.top) / rect.height)));
       jumpToPointer(moveEvent.clientY, "auto");
     };
     const onUp = () => {
@@ -586,15 +621,6 @@ export function ChatMinimap({
   const nearestNode = mouseYRatio === null ? null : findNearestNode(mouseYRatio);
   const nearestNodeIndex = nearestNode?.index ?? null;
 
-  useEffect(() => {
-    if (!minimapHovered || nearestNodeIndex === null) return;
-    const previewBox = previewBoxRef.current;
-    const previewItem = previewItemRefs.current.get(nearestNodeIndex);
-    if (!previewBox || !previewItem) return;
-    const targetTop = previewItem.offsetTop
-      - (previewBox.clientHeight - previewItem.offsetHeight) / 2;
-    previewBox.scrollTop = Math.max(0, targetTop);
-  }, [allNodes, minimapHovered, nearestNodeIndex]);
 
   if (!visible) return null;
 
@@ -611,6 +637,7 @@ export function ChatMinimap({
       onMouseDown={handleMouseDown}
       onMouseLeave={schedulePreviewHide}
       onMouseMove={(event) => {
+        previewInteractingRef.current = false;
         const rect = event.currentTarget.getBoundingClientRect();
         const ratio = (event.clientY - rect.top) / rect.height;
         setMouseYRatio(ratio);
@@ -642,7 +669,7 @@ export function ChatMinimap({
             aria-current={isActive ? "step" : undefined}
             aria-label={t("chatMinimap.jumpToMessage", { number: node.index + 1, preview: getUserPreview(node.targetTurn.userMessage).slice(0, 160) })}
             tabIndex={isActive || (activeIndex === null && node.index === 0) ? 0 : -1}
-            onFocus={() => { showPreview(); setMouseYRatio(node.topRatio); }}
+            onFocus={() => { previewInteractingRef.current = false; showPreview(); setMouseYRatio(node.topRatio); }}
             onClick={(event) => {
               // Pointer navigation is handled by the rail's drag gesture.
               if (event.detail === 0) scrollToNode(node, "smooth");
@@ -675,24 +702,28 @@ export function ChatMinimap({
         );
       })}
 
-      {minimapHovered && allNodes.length > 0 && (
+      {minimapHovered && nearestNode && (
         <div
           ref={previewBoxRef}
           className={styles.preview}
+          style={{ top: Math.max(8, Math.min(minimapHeight - 248, nearestNode.topRatio * minimapHeight - 80)) }}
           data-minimap-preview-box=""
-          onMouseEnter={showPreview}
+          onMouseEnter={() => {
+            previewInteractingRef.current = true;
+            showPreview();
+          }}
+          onFocus={() => {
+            previewInteractingRef.current = true;
+            showPreview();
+          }}
           onMouseDown={(event) => event.stopPropagation()}
           onMouseMove={(event) => event.stopPropagation()}
         >
-          {allNodes.map((node) => {
+          {[nearestNode].map((node) => {
             const isLocated = nearestNodeIndex === node.index;
             return (
               <div
                 key={node.index}
-                ref={(element) => {
-                  if (element) previewItemRefs.current.set(node.index, element);
-                  else previewItemRefs.current.delete(node.index);
-                }}
                 className={styles.turn}
                 data-minimap-preview-index={node.index}
                 data-located={isLocated ? "true" : undefined}
@@ -714,7 +745,9 @@ export function ChatMinimap({
                     </span>
                   </button>
 
-                  {node.targetTurn.assistantPreviews.map((assistant, assistantIndex) => (
+                  {node.targetTurn.assistantPreviews.slice(-1).map((assistant) => {
+                    const assistantIndex = node.targetTurn.assistantPreviews.length - 1;
+                    return (
                     <div
                       key={assistantIndex}
                       className={styles.assistant}
@@ -737,7 +770,8 @@ export function ChatMinimap({
                         )}
                       />
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );

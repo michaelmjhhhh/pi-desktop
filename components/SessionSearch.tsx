@@ -41,7 +41,7 @@ export function SessionSearch({ open, query, refreshKey, children, selectedSessi
   }, [open, search, refreshKey]);
 
   return !open || !search ? children : (
-    <div className="min-h-20 flex-1 overflow-y-auto" aria-busy={!response && !failed}>
+    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain" aria-busy={!response && !failed}>
       <div role="status" className="px-3 py-2 text-xs text-text-muted">
         {failed ? t("sidebar.sessionSearchFailed") : !response ? t("sidebar.sessionSearching")
           : response.results.length === 0 ? t("sidebar.sessionSearchEmpty")

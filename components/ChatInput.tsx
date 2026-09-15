@@ -282,6 +282,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
     : {};
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerOptionsRef = useRef<HTMLDetailsElement>(null);
   const toolDropdownRef = useRef<HTMLDivElement>(null);
   const thinkingDropdownRef = useRef<HTMLDivElement>(null);
   const historyMenuRef = useRef<HTMLDivElement>(null);
@@ -1236,6 +1237,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      if (composerOptionsRef.current && !composerOptionsRef.current.contains(e.target as Node)) {
+        composerOptionsRef.current.open = false;
+      }
       if (toolDropdownRef.current && !toolDropdownRef.current.contains(e.target as Node)) {
         setToolDropdownOpen(false);
       }
@@ -1833,7 +1837,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
               fontSize: "var(--chat-content-font-size, 14px)",
               lineHeight: 1.6,
               fontFamily: "inherit",
-              minHeight: compact ? 96 : 88,
+              minHeight: compact ? 96 : 64,
               maxHeight: 200,
               overflow: "auto",
             }}
@@ -1932,12 +1936,14 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
         {!compact && <div className="workspace-composer-controls" style={{
           marginTop: 8,
           display: "flex",
+          flexWrap: "wrap",
           alignItems: "center",
           gap: 6,
+          minWidth: 0,
         }}>
 
           {/* LEFT: attach + model selector (idle) or steer/followup toggle (streaming) */}
-          <div style={{ flex: "0 0 auto", minWidth: 0, display: "flex", alignItems: "center", gap: 2 }}>
+          <div style={{ flex: "0 1 auto", minWidth: 0, maxWidth: "100%", display: "flex", alignItems: "center", gap: 2 }}>
             <button
               onClick={() => fileInputRef.current?.click()}
              title={t("chat.attachImage")}
@@ -1979,12 +1985,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
             )}
           </div>
 
-          {/* spacer */}
-          <div style={{ flex: 1 }} />
-
           {/* RIGHT: thinking + tools preset + compact + sound (idle) | Stop + sound (streaming) */}
           <div style={{
-            flex: "0 0 auto",
+            flex: "0 1 auto",
+            minWidth: 0,
+            maxWidth: "100%",
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
@@ -1994,9 +1999,11 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
 
             <div style={{
               display: "flex",
+              flexWrap: "wrap",
+              justifyContent: "flex-end",
+              minWidth: 0,
               alignItems: "center",
               gap: 2,
-
             }}>
             {!isStreaming && onThinkingLevelChange && (
               <div ref={thinkingDropdownRef} style={{ position: "relative" }}>
@@ -2085,127 +2092,146 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
                 )}
               </div>
             )}
-            {!isStreaming && onToolPresetChange && (
-              <div ref={toolDropdownRef} style={{ position: "relative" }}>
-                <button
-                  onClick={() => !isStreaming && setToolDropdownOpen((v) => !v)}
-                  disabled={isStreaming}
-                  title={t("chat.changeToolPreset") + `: ${toolPresetLabel}`}
-                  aria-label={t("chat.changeToolPreset")}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                    padding: "8px 12px",
-                    height: 32,
-                    background: toolDropdownOpen ? "var(--bg-hover)" : "none",
-                    border: "none",
-                    borderRadius: 9,
-                    color: "var(--text-muted)",
-                    cursor: isStreaming ? "not-allowed" : "pointer",
-                    fontSize: 12,
-                    opacity: isStreaming ? 0.5 : 1,
-                    transition: "background 0.12s, color 0.12s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (isStreaming) return;
-                    e.currentTarget.style.background = "var(--bg-hover)";
-                    e.currentTarget.style.color = "var(--text)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = toolDropdownOpen ? "var(--bg-hover)" : "none";
-                    e.currentTarget.style.color = "var(--text-muted)";
-                  }}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-                  </svg>
-                  <span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>
-                </button>
-                {toolDropdownOpen && (
-                  <div style={{
-                    position: "absolute",
-                    bottom: "calc(100% + 6px)",
-                    right: 0,
-                    zIndex: 100, background: "var(--bg)", border: "1px solid var(--border)",
-                    borderRadius: 8, boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
-                    overflow: "hidden", minWidth: 120,
-                  }}>
-                    {TOOL_PRESETS.map((lvl) => {
-                      const preset = TOOL_PRESET_MAP[lvl];
-                      const isActive = (toolPreset ?? "default") === preset;
-                      let desc: string;
-                      if (lvl === "chat-only") desc = t("chat.chatOnly");
-                      else if (lvl === "read-only") desc = t("chat.readOnlyTools", { count: 4 });
-                      else if (lvl === "default") desc = t("chat.builtInTools", { count: 4 });
-                      else desc = t("chat.allBuiltInTools");
-                      return (
-                        <button
-                          key={lvl}
-                          onClick={() => { setToolDropdownOpen(false); if (!isActive) onToolPresetChange(preset); }}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 8,
-                            width: "100%", padding: "7px 12px",
-                            background: isActive ? "var(--bg-selected)" : "none",
-                            border: "none",
-                            color: isActive ? "var(--text)" : "var(--text-muted)",
-                            cursor: "pointer", fontSize: 12, textAlign: "left",
-                            fontWeight: isActive ? 600 : 400,
-                            whiteSpace: "nowrap",
-                          }}
-                          onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
-                          onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "none"; }}
-                        >
-                          {isActive
-                            ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
-                            : <span style={{ width: 10, flexShrink: 0 }} />}
-                          <span style={{ flex: 1 }}>{lvl}</span>
-                          <span style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: 8 }}>{desc}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {!isStreaming && onCompact && (
-              <div>
-                <button
-                  onClick={isCompacting ? onAbortCompaction : onCompact}
-                  disabled={isStreaming && !isCompacting}
-                  style={{
-                    display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-                    padding: "8px 12px",
-                    height: 32,
-                    background: isCompacting ? "rgba(239,68,68,0.08)" : "none",
-                    border: "none",
-                    borderRadius: 9,
-                    color: isCompacting ? "#ef4444" : "var(--text-muted)",
-                    cursor: (isStreaming && !isCompacting) ? "not-allowed" : "pointer",
-                    fontSize: 12, opacity: (isStreaming && !isCompacting) ? 0.5 : 1,
-                    transition: "background 0.12s, color 0.12s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (isStreaming && !isCompacting) return;
-                    e.currentTarget.style.background = isCompacting ? "rgba(239,68,68,0.16)" : "var(--bg-hover)";
-                    e.currentTarget.style.color = isCompacting ? "#ef4444" : "var(--text)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = isCompacting ? "rgba(239,68,68,0.08)" : "none";
-                    e.currentTarget.style.color = isCompacting ? "#ef4444" : "var(--text-muted)";
-                  }}
-                   title={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
-                   aria-label={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
-                >
-                  {isCompacting ? (
-                    <><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" /></svg>{(<span style={{ whiteSpace: "nowrap" }}>{t("chat.compacting")}</span>)}</>
-                  ) : (
-                    <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
-                      <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
-                    </svg>{(<span style={{ whiteSpace: "nowrap" }}>{t("chat.compact")}</span>)}</>
+            {!isStreaming && (onToolPresetChange || onCompact) && (
+              <details
+                ref={composerOptionsRef}
+                className="workspace-options"
+                onToggle={(event) => { if (!event.currentTarget.open) setToolDropdownOpen(false); }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    event.stopPropagation();
+                    event.currentTarget.open = false;
+                    event.currentTarget.querySelector("summary")?.focus();
+                  }
+                }}
+              >
+                <summary title={t("chat.moreOptions")}>{isCompacting ? t("chat.compacting") : rawToolPresetLabel === "default" ? t("chat.moreOptions") : toolPresetLabel}</summary>
+                <div className="workspace-options-panel">
+                  {!isStreaming && onToolPresetChange && (
+                    <div ref={toolDropdownRef} style={{ position: "relative" }}>
+                      <button
+                        onClick={() => !isStreaming && setToolDropdownOpen((v) => !v)}
+                        disabled={isStreaming}
+                        title={t("chat.changeToolPreset") + `: ${toolPresetLabel}`}
+                        aria-label={t("chat.changeToolPreset")}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                          padding: "8px 12px",
+                          height: 32,
+                          background: toolDropdownOpen ? "var(--bg-hover)" : "none",
+                          border: "none",
+                          borderRadius: 9,
+                          color: "var(--text-muted)",
+                          cursor: isStreaming ? "not-allowed" : "pointer",
+                          fontSize: 12,
+                          opacity: isStreaming ? 0.5 : 1,
+                          transition: "background 0.12s, color 0.12s",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (isStreaming) return;
+                          e.currentTarget.style.background = "var(--bg-hover)";
+                          e.currentTarget.style.color = "var(--text)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = toolDropdownOpen ? "var(--bg-hover)" : "none";
+                          e.currentTarget.style.color = "var(--text-muted)";
+                        }}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+                        </svg>
+                        <span style={{ whiteSpace: "nowrap" }}>{toolPresetLabel}</span>
+                      </button>
+                      {toolDropdownOpen && (
+                        <div className="composer-tool-presets" style={{
+                          position: "absolute",
+                          bottom: "calc(100% + 6px)",
+                          right: 0,
+                          zIndex: 100, background: "var(--bg)", border: "1px solid var(--border)",
+                          borderRadius: 8, boxShadow: "0 -4px 16px rgba(0,0,0,0.10)",
+                          overflow: "hidden", minWidth: 120,
+                        }}>
+                          {TOOL_PRESETS.map((lvl) => {
+                            const preset = TOOL_PRESET_MAP[lvl];
+                            const isActive = (toolPreset ?? "default") === preset;
+                            let desc: string;
+                            if (lvl === "chat-only") desc = t("chat.chatOnly");
+                            else if (lvl === "read-only") desc = t("chat.readOnlyTools", { count: 4 });
+                            else if (lvl === "default") desc = t("chat.builtInTools", { count: 4 });
+                            else desc = t("chat.allBuiltInTools");
+                            return (
+                              <button
+                                key={lvl}
+                                onClick={() => { setToolDropdownOpen(false); if (!isActive) onToolPresetChange(preset); }}
+                                style={{
+                                  display: "flex", alignItems: "center", gap: 8,
+                                  width: "100%", padding: "7px 12px",
+                                  background: isActive ? "var(--bg-selected)" : "none",
+                                  border: "none",
+                                  color: isActive ? "var(--text)" : "var(--text-muted)",
+                                  cursor: "pointer", fontSize: 12, textAlign: "left",
+                                  fontWeight: isActive ? 600 : 400,
+                                  whiteSpace: "nowrap",
+                                }}
+                                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--bg-hover)"; }}
+                                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "none"; }}
+                              >
+                                {isActive
+                                  ? <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><polyline points="1.5 5 4 7.5 8.5 2.5" /></svg>
+                                  : <span style={{ width: 10, flexShrink: 0 }} />}
+                                <span style={{ flex: 1 }}>{lvl}</span>
+                                <span style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: 8 }}>{desc}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
                   )}
-                </button>
-              </div>
+
+                  {!isStreaming && onCompact && (
+                    <div>
+                      <button
+                        onClick={isCompacting ? onAbortCompaction : onCompact}
+                        disabled={isStreaming && !isCompacting}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                          padding: "8px 12px",
+                          height: 32,
+                          background: isCompacting ? "rgba(239,68,68,0.08)" : "none",
+                          border: "none",
+                          borderRadius: 9,
+                          color: isCompacting ? "#ef4444" : "var(--text-muted)",
+                          cursor: (isStreaming && !isCompacting) ? "not-allowed" : "pointer",
+                          fontSize: 12, opacity: (isStreaming && !isCompacting) ? 0.5 : 1,
+                          transition: "background 0.12s, color 0.12s",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (isStreaming && !isCompacting) return;
+                          e.currentTarget.style.background = isCompacting ? "rgba(239,68,68,0.16)" : "var(--bg-hover)";
+                          e.currentTarget.style.color = isCompacting ? "#ef4444" : "var(--text)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = isCompacting ? "rgba(239,68,68,0.08)" : "none";
+                          e.currentTarget.style.color = isCompacting ? "#ef4444" : "var(--text-muted)";
+                        }}
+                         title={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
+                         aria-label={isCompacting ? t("chat.stopCompaction") : t("chat.compactContext")}
+                      >
+                        {isCompacting ? (
+                          <><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><rect x="2" y="2" width="6" height="6" rx="1" fill="currentColor" /></svg>{(<span style={{ whiteSpace: "nowrap" }}>{t("chat.compacting")}</span>)}</>
+                        ) : (
+                          <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+                            <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
+                          </svg>{(<span style={{ whiteSpace: "nowrap" }}>{t("chat.compact")}</span>)}</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                </div>
+              </details>
             )}
 
             {isStreaming && (

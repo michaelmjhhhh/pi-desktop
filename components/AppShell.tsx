@@ -46,6 +46,7 @@ import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
+  SPLIT_PANEL_MIN_WIDTH,
 } from "@/lib/panel-layout";
 import type { SessionInfo, SessionTreeNode } from "@/lib/types";
 import type { ProjectTrustStatus } from "@/lib/api-types";
@@ -174,13 +175,21 @@ export function AppShell() {
     [rightPanelOpen],
   );
   const getResponsiveRightPanelMaxWidth = useCallback(
-    () => typeof window === "undefined"
-      ? RIGHT_PANEL_MAX_WIDTH
-      : getRightPanelMaxWidth({
-        viewportWidth: window.innerWidth,
+    () => {
+      if (typeof window === "undefined") return RIGHT_PANEL_MAX_WIDTH;
+      const viewportWidth = window.innerWidth;
+      const maxWidth = getRightPanelMaxWidth({
+        viewportWidth,
         sidebarOpen,
         sidebarWidth: sidebarWidthRef.current,
-      }),
+      });
+      if (viewportWidth < SPLIT_PANEL_MIN_WIDTH) return maxWidth;
+      // Keep the conversation at least as wide as the file panel. Apply this
+      // through the resizer so dragging, keyboard controls, and restored widths
+      // all use the same bound instead of a separate CSS-only cap.
+      const availableWidth = viewportWidth - (sidebarOpen ? sidebarWidthRef.current : 0);
+      return Math.min(maxWidth, Math.floor(availableWidth / 2));
+    },
     [sidebarOpen],
   );
   const sidebarResizer = useResizablePanel({
@@ -210,9 +219,9 @@ export function AppShell() {
   const reclampRightPanelWidth = rightPanelResizer.reclampWidth;
   useEffect(() => {
     if (!rightPanelOpen) return;
-    reclampSidebarWidth();
     reclampRightPanelWidth();
-  }, [reclampRightPanelWidth, reclampSidebarWidth, rightPanelOpen]);
+    reclampSidebarWidth();
+  }, [reclampRightPanelWidth, reclampSidebarWidth, rightPanelOpen, sidebarResizer.width]);
   const chatInputRef = useRef<ChatInputHandle | null>(null);
   const [pendingQuotePrompt, setPendingQuotePrompt] = useState<{ sessionId: string; text: string } | null>(null);
   const topBarRef = useRef<HTMLDivElement>(null);
@@ -1706,7 +1715,7 @@ export function AppShell() {
         className={`sidebar-container${sidebarOpen ? " sidebar-open" : " sidebar-closed"}${sidebarResizer.isResizing ? " sidebar-resizing" : ""}`}
         style={{
           "--sidebar-width": `${sidebarResizer.width}px`,
-          background: "var(--bg-panel)",
+          background: "var(--sidebar-bg)",
           borderRight: "1px solid var(--border)",
           display: "flex",
           flexDirection: "column",
@@ -1765,9 +1774,8 @@ export function AppShell() {
                 <strong title={selectedSession?.name ?? undefined}>{selectedSession?.name || translate(selectedSession ? "session.title" : "workspace.newThread")}</strong>
               </div>
               {renderProjectTrustWarning()}
-              <button type="button" className="workspace-tools-toggle" aria-expanded={threadToolsOpen} aria-controls="desktop-thread-tools" onClick={() => { setThreadToolsOpen((open) => !open); if (threadToolsOpen) setActiveTopPanel(null); }}>
+              <button type="button" className="workspace-tools-toggle" title={translate("workspace.threadTools")} aria-label={translate("workspace.threadTools")} aria-expanded={threadToolsOpen} aria-controls="desktop-thread-tools" onClick={() => { setThreadToolsOpen((open) => !open); if (threadToolsOpen) setActiveTopPanel(null); }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M4 7h16M4 17h16" /><circle cx="9" cy="7" r="3" fill="var(--bg)" /><circle cx="15" cy="17" r="3" fill="var(--bg)" /></svg>
-                {translate("workspace.threadTools")}
               </button>
               {renderThemeButton()}
               {renderLanguageButton()}
@@ -2226,13 +2234,13 @@ export function AppShell() {
         } as React.CSSProperties}
       >
         {/* Right panel tab bar */}
-        <div style={{
+        <div className="workspace-file-header" style={{
           display: "flex",
           alignItems: "center",
           flexShrink: 0,
-          height: 36,
+          height: "var(--workspace-header-height)",
 
-          background: "var(--bg-panel)",
+          background: "var(--bg)",
           borderBottom: "1px solid var(--border)",
         }}>
           <div style={{ flex: 1, overflow: "hidden" }}>
