@@ -119,3 +119,10 @@ is available, record the check as skipped; do not count it as passed.
 - [ ] Narrow the chat with both panels open, including a long model name. Composer controls and the Options popup should fit without clipping.
 - [ ] Open a terminal, run a command, and switch themes while it is running. Colors should update without reconnecting the terminal or losing output.
 - [ ] Open General and model settings, switch sections, and dismiss/reopen. Confirm unsaved input, focus, selected navigation, and normal save/cancel behavior remain intact.
+
+### Focused message navigation preview
+
+- Hover different message markers: only the pointed user prompt and its latest related reply appear in a compact card; unrelated turns stay hidden.
+- Move into the card, then click its prompt or reply outline: the card remains usable and the conversation jumps to the corresponding message.
+- Use Tab and arrow keys on the rail, then Escape: the preview follows keyboard focus and closes with Escape.
+- Resize the chat with the file panel open and inspect markers near the top/bottom: the card stays within the chat, with internal scrolling for long outlines.

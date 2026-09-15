@@ -49,19 +49,20 @@
 
 .preview {
   position: absolute;
-  top: 0;
-  bottom: 0;
   right: 100%;
   z-index: 100;
-  width: min(320px, calc(100cqw - 44px));
+  width: min(380px, calc(100cqw - 44px));
+  max-height: min(240px, calc(100% - 16px));
+  padding: 12px;
+  border-radius: 16px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  background: var(--bg);
-  border-left: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-  box-shadow: -10px 0 26px rgba(0, 0, 0, 0.07);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
   pointer-events: auto;
   cursor: default;
   user-select: text;
@@ -278,4 +279,39 @@
 .assistantJump:focus-visible {
   outline: 1px solid color-mix(in srgb, var(--text-muted) 65%, transparent);
   outline-offset: 1px;
+}
+
+/* One pointed turn, with a quiet related-answer outline. */
+.preview .turn {
+  display: block;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.preview .number,
+.preview .assistantJump { display: none; }
+.preview .user,
+.preview .heading,
+.preview .paragraph {
+  width: 100%;
+  margin-left: 0;
+  padding: 4px;
+  border-radius: 6px;
+}
+.preview .user { font-weight: 600; }
+.preview .userText {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+.preview .assistant {
+  margin-top: 6px;
+  border: 0;
+}
+.preview .paragraph {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  line-height: 1.5;
 }

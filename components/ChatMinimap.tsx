@@ -252,7 +252,6 @@ export function ChatMinimap({
   });
   const previewInteractingRef = useRef(false);
   const previewBoxRef = useRef<HTMLDivElement>(null);
-  const previewItemRefs = useRef(new Map<number, HTMLDivElement>());
   const previewHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeNodeLockRef = useRef<{ index: number; until: number } | null>(null);
   const pendingNavigationRef = useRef<{
@@ -591,6 +590,7 @@ export function ChatMinimap({
     jumpToPointer(event.clientY, "smooth");
     const onMove = (moveEvent: MouseEvent) => {
       if (!draggingRef.current) return;
+      setMouseYRatio(Math.max(0, Math.min(1, (moveEvent.clientY - rect.top) / rect.height)));
       jumpToPointer(moveEvent.clientY, "auto");
     };
     const onUp = () => {
@@ -605,15 +605,6 @@ export function ChatMinimap({
   const nearestNode = mouseYRatio === null ? null : findNearestNode(mouseYRatio);
   const nearestNodeIndex = nearestNode?.index ?? null;
 
-  useEffect(() => {
-    if (!minimapHovered || nearestNodeIndex === null || previewInteractingRef.current) return;
-    const previewBox = previewBoxRef.current;
-    const previewItem = previewItemRefs.current.get(nearestNodeIndex);
-    if (!previewBox || !previewItem) return;
-    const targetTop = previewItem.offsetTop
-      - (previewBox.clientHeight - previewItem.offsetHeight) / 2;
-    previewBox.scrollTop = Math.max(0, targetTop);
-  }, [allNodes, minimapHovered, nearestNodeIndex]);
 
   if (!visible) return null;
 
@@ -695,10 +686,11 @@ export function ChatMinimap({
         );
       })}
 
-      {minimapHovered && allNodes.length > 0 && (
+      {minimapHovered && nearestNode && (
         <div
           ref={previewBoxRef}
           className={styles.preview}
+          style={{ top: Math.max(8, Math.min(minimapHeight - 248, nearestNode.topRatio * minimapHeight - 80)) }}
           data-minimap-preview-box=""
           onMouseEnter={() => {
             previewInteractingRef.current = true;
@@ -711,15 +703,11 @@ export function ChatMinimap({
           onMouseDown={(event) => event.stopPropagation()}
           onMouseMove={(event) => event.stopPropagation()}
         >
-          {allNodes.map((node) => {
+          {[nearestNode].map((node) => {
             const isLocated = nearestNodeIndex === node.index;
             return (
               <div
                 key={node.index}
-                ref={(element) => {
-                  if (element) previewItemRefs.current.set(node.index, element);
-                  else previewItemRefs.current.delete(node.index);
-                }}
                 className={styles.turn}
                 data-minimap-preview-index={node.index}
                 data-located={isLocated ? "true" : undefined}
@@ -741,7 +729,9 @@ export function ChatMinimap({
                     </span>
                   </button>
 
-                  {node.targetTurn.assistantPreviews.map((assistant, assistantIndex) => (
+                  {node.targetTurn.assistantPreviews.slice(-1).map((assistant) => {
+                    const assistantIndex = node.targetTurn.assistantPreviews.length - 1;
+                    return (
                     <div
                       key={assistantIndex}
                       className={styles.assistant}
@@ -764,7 +754,8 @@ export function ChatMinimap({
                         )}
                       />
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
