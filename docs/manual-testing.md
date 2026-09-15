@@ -103,3 +103,11 @@ is available, record the check as skipped; do not count it as passed.
 - [ ] With many threads, scroll rapidly past the selected card at the top, middle, and end of the list. Confirm no gaps, overlaps, or missing rows, including while an inline rename has focus.
 - [ ] Narrow the sidebar to its minimum width and repeat in both themes. Check long project names, titles, branches, and the delete confirmation. Running/unread indicators should remain visible.
 - [ ] Search and clear the query; switch projects, reload, and confirm selection and the existing sidebar scroll behavior remain usable.
+
+## Reference sidebar structure
+
+- [ ] Confirm Search and the project picker are the only top navigation rows. The default filter is All projects; selecting one filters the threads correctly. New thread and Add project remain functional.
+- [ ] Confirm selected/running/unread session families appear as full cards above Settled. Select a settled thread and confirm it becomes a full card; read a background completion and confirm its unread indicator clears.
+- [ ] Collapse and expand Settled with mouse and keyboard. Scroll a long list with several full cards above it; no gaps or overlapping rows should appear. Rename/delete a disposable settled thread and cancel the action.
+- [ ] Select a git project, reopen its project menu, and use the embedded worktree picker. Confirm worktree creation, cancellation, and switching are still reachable without clipping the menu.
+- [ ] Compare spacing and alignment to the supplied screenshot at normal/minimum sidebar widths in both themes. Confirm font size, timestamps, selected card, and the Settled divider remain readable.

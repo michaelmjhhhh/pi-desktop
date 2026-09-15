@@ -177,6 +177,7 @@ export const enLocale: LocalePlugin = {
     "modelPicker.selected": "Selected model",
     "modelPicker.pin": "Favorite {model}",
     "modelPicker.unpin": "Unfavorite {model}",
+    "workspace.settled": "Settled",
     "workspace.allProjects": "All projects",
     "workspace.addProject": "Add project",
     "workspace.projectSettings": "Settings for {project}",

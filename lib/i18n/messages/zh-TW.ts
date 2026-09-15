@@ -177,6 +177,7 @@ export const zhTWLocale: LocalePlugin = {
     "modelPicker.selected": "目前模型",
     "modelPicker.pin": "收藏 {model}",
     "modelPicker.unpin": "取消收藏 {model}",
+    "workspace.settled": "已結束",
     "workspace.allProjects": "所有專案",
     "workspace.addProject": "新增專案",
     "workspace.projectSettings": "{project} 的設定",
