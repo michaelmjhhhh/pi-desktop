@@ -17,7 +17,7 @@ import { SessionSearch } from "./SessionSearch";
 
 // Compact rows share one height; the selected card has room for project details.
 const SESSION_LIST_ITEM_HEIGHT = 44;
-const FEATURED_SESSION_ITEM_HEIGHT = 92;
+const FEATURED_SESSION_ITEM_HEIGHT = 84;
 
 export function getSessionListIndices(count: number, scrollTop: number, viewportHeight: number, focusedIndex = -1): number[] {
   const overscan = 8;
@@ -1089,7 +1089,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 text={(selectedProject?.root ?? selectedCwd).split("/").filter(Boolean).pop() || "/"}
                 style={{
                   flex: 1,
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-ui)",
                   fontSize: 11,
                   color: "var(--text)",
                 }}
@@ -1101,7 +1101,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-ui)",
                   fontSize: 11,
                   color: "var(--text-dim)",
                 }}
@@ -1163,7 +1163,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                     style={{
                       width: "100%",
                       fontSize: 11,
-                      fontFamily: "var(--font-mono)",
+                      fontFamily: "var(--font-ui)",
                       padding: "5px 8px",
                       border: "1px solid var(--border)",
                       borderRadius: 5,
@@ -1204,7 +1204,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                       cursor: "pointer",
                       textAlign: "left",
                       fontSize: 11,
-                      fontFamily: "var(--font-mono)",
+                      fontFamily: "var(--font-ui)",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -1322,7 +1322,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                 </svg>
                 <PathLabel
                   text={currentWorktree ? (currentWorktree.branch ?? displayCwd(currentWorktree.path, homeDir)) : "…"}
-                  style={{ flex: 1, fontFamily: "var(--font-mono)", color: "var(--text)" }}
+                  style={{ flex: 1, fontFamily: "var(--font-ui)", color: "var(--text)" }}
                 />
                 {currentWorktree?.isMain && (
                    <span style={{ flexShrink: 0, color: "var(--text-dim)", fontSize: 10 }}>{t("sidebar.main")}</span>
@@ -1368,7 +1368,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                         style={{
                           width: "100%",
                           fontSize: 11,
-                          fontFamily: "var(--font-mono)",
+                          fontFamily: "var(--font-ui)",
                           padding: "5px 8px",
                           border: "1px solid var(--border)",
                           borderRadius: 5,
@@ -1432,7 +1432,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                               cursor: "pointer",
                               textAlign: "left",
                               fontSize: 11,
-                              fontFamily: "var(--font-mono)",
+                              fontFamily: "var(--font-ui)",
                             }}
                           >
                             {isCurrent ? (
@@ -1530,7 +1530,7 @@ export function SessionSidebar({ selectedSessionId, onSelectSession, onNewSessio
                         style={{
                           width: "100%",
                           fontSize: 11,
-                          fontFamily: "var(--font-mono)",
+                          fontFamily: "var(--font-ui)",
                           padding: "5px 8px",
                           border: "1px solid var(--accent)",
                           borderRadius: 5,
@@ -1939,7 +1939,7 @@ function showProjectActivity(
         <span
           title={t("sidebar.agentRunning")}
           aria-label={`${t("sidebar.agentRunning")} (${activity.running})`}
-          style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "var(--accent)", fontSize: 10, fontFamily: "var(--font-mono)" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "var(--accent)", fontSize: 10, fontFamily: "var(--font-ui)" }}
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ display: "block" }}>
             <g>
@@ -1954,7 +1954,7 @@ function showProjectActivity(
         <span
           title={t("sidebar.newSessionActivity")}
           aria-label={`${t("sidebar.newSessionActivity")} (${activity.unread})`}
-          style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "#0891b2", fontSize: 10, fontFamily: "var(--font-mono)" }}
+          style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "#0891b2", fontSize: 10, fontFamily: "var(--font-ui)" }}
         >
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />
           {activity.unread}

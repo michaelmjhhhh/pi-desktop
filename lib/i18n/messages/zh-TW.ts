@@ -309,6 +309,7 @@ export const zhTWLocale: LocalePlugin = {
     "chat.waitingModel": "正在等待模型...",
     "chat.runningCommand": "正在執行命令...",
     "chat.thinking": "正在思考...",
+    "chat.moreOptions": "選項",
     "chat.usageDetails": "用量",
     "chat.processDetails": "處理詳細資料",
     "chat.message": "則訊息",

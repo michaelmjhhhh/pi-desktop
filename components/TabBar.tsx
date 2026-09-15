@@ -31,13 +31,14 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Props) {
   return (
     <div
       role="tablist"
+      className="workspace-panel-tabs"
       style={{
         display: "flex",
         alignItems: "flex-end",
-        background: "var(--bg-panel)",
+        background: "transparent",
         overflowX: "auto",
         flexShrink: 0,
-        height: 36,
+        height: "100%",
       }}
     >
       {tabs.map((tab) => {
@@ -77,11 +78,11 @@ export function TabBar({ tabs, activeTabId, onSelectTab, onCloseTab }: Props) {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              height: 36,
+              height: 32,
               paddingLeft: 12,
               paddingRight: 6,
-              borderRight: "1px solid var(--border)",
-              background: isActive ? "var(--bg)" : "var(--bg-panel)",
+              borderRight: "none",
+              background: isActive ? "var(--bg-hover)" : "transparent",
               cursor: "pointer",
               fontSize: 12,
               color: isActive ? "var(--text)" : "var(--text-muted)",

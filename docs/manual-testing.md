@@ -111,3 +111,11 @@ is available, record the check as skipped; do not count it as passed.
 - [ ] Collapse and expand Settled with mouse and keyboard. Scroll a long list with several full cards above it; no gaps or overlapping rows should appear. Rename/delete a disposable settled thread and cancel the action.
 - [ ] Select a git project, reopen its project menu, and use the embedded worktree picker. Confirm worktree creation, cancellation, and switching are still reachable without clipping the menu.
 - [ ] Compare spacing and alignment to the supplied screenshot at normal/minimum sidebar widths in both themes. Confirm font size, timestamps, selected card, and the Settled divider remain readable.
+
+## T3 Code inspired visual system
+
+- [ ] Compare the sidebar, header, chat, file tabs, and settings in both themes: compact controls, neutral message surfaces, a raised composer, and consistent borders. SF Pro should be used for UI on macOS; code and terminal should remain monospace.
+- [ ] Open composer Options; change the tool preset, compact a disposable session, and close with Escape/outside click. Confirm keyboard focus returns on Escape. Model/reasoning controls and streaming Stop remain directly reachable.
+- [ ] Narrow the chat with both panels open, including a long model name. Composer controls and the Options popup should fit without clipping.
+- [ ] Open a terminal, run a command, and switch themes while it is running. Colors should update without reconnecting the terminal or losing output.
+- [ ] Open General and model settings, switch sections, and dismiss/reopen. Confirm unsaved input, focus, selected navigation, and normal save/cancel behavior remain intact.
