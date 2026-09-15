@@ -42,6 +42,7 @@ export interface SessionData {
   filePath: string;
   totalActiveMs: number;
   tree: SessionTreeNode[];
+  navigation?: { entryId: string; message: AgentMessage }[];
   leafId: string | null;
   toolNames?: string[];
   context: {
@@ -439,7 +440,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       const url = `/api/sessions/${encodeURIComponent(sid)}/context?${params}`;
       const res = await fetch(url, { signal: options?.signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const d = await res.json() as { context: SessionData["context"] };
+      const d = await res.json() as { context: SessionData["context"]; navigation?: SessionData["navigation"] };
       if (sessionIdRef.current !== sid || options?.signal?.aborted || !sessionHookMountedRef.current) return;
       setHistoryCursor(d.context.oldestEntryId);
       setHasEarlierMessages(d.context.hasMore);
@@ -452,7 +453,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           oldestEntryId: d.context.oldestEntryId,
           hasMore: d.context.hasMore,
         } : d.context;
-        return { ...prev, context };
+        return { ...prev, context, ...(!before ? { navigation: d.navigation } : {}) };
       });
       if (before) {
         // Older page: prepend so scroll position stays anchored.

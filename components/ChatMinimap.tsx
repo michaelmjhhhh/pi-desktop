@@ -17,7 +17,9 @@ interface Props {
   streamingMessage: Partial<AgentMessage> | null;
   scrollContainer: RefObject<HTMLDivElement | null>;
   messageRefs: RefObject<(HTMLDivElement | null)[]>;
-  onRevealHistory: () => void;
+  entryIds: string[];
+  navigation?: { entryId: string; message: AgentMessage }[];
+  onRevealHistory: (entryId?: string) => void;
 }
 
 const MINIMAP_WIDTH = 36;
@@ -32,6 +34,7 @@ interface AssistantPreview {
 }
 
 interface TurnInfo {
+  entryId?: string;
   userMessage: UserMessage | CustomMessage;
   assistantPreviews: AssistantPreview[];
   scrollTop: number | null;
@@ -230,6 +233,8 @@ function layoutNodes(allNodes: NodeInfo[], minimapHeight: number): NodeLayout {
 
 export function ChatMinimap({
   messages,
+  entryIds,
+  navigation,
   streamingMessage,
   scrollContainer,
   messageRefs,
@@ -261,10 +266,18 @@ export function ChatMinimap({
     headingIndex?: number;
   } | null>(null);
 
+  const historyPrefix = useMemo(() => {
+    if (!navigation || !entryIds.length) return [];
+    const firstLoaded = new Set(entryIds);
+    const boundary = navigation.findIndex((item) => firstLoaded.has(item.entryId));
+    return boundary < 0 ? navigation : navigation.slice(0, boundary);
+  }, [navigation, entryIds]);
   const allMessages = useMemo(
-    () => (streamingMessage ? [...messages, streamingMessage] : messages) as (AgentMessage | Partial<AgentMessage>)[],
-    [messages, streamingMessage],
+    () => [...historyPrefix.map((item) => item.message), ...messages, ...(streamingMessage ? [streamingMessage] : [])],
+    [historyPrefix, messages, streamingMessage],
   );
+  const navigationDataRef = useRef({ historyPrefix, entryIds });
+  navigationDataRef.current = { historyPrefix, entryIds };
   const allMessagesRef = useRef(allMessages);
   allMessagesRef.current = allMessages;
 
@@ -347,16 +360,19 @@ export function ChatMinimap({
       let refIndex = 0;
       let currentTurn: TurnInfo | null = null;
 
-      for (const message of allMessagesRef.current) {
+      const { historyPrefix, entryIds } = navigationDataRef.current;
+      for (const [messageIndex, message] of allMessagesRef.current.entries()) {
         const isAnchor = isMessageGroupAnchor(message);
         if (!isAnchor && message.role !== "assistant") continue;
-        const element = refs?.[refIndex];
-        refIndex++;
+        const isHistorical = messageIndex < historyPrefix.length;
+        const element = isHistorical ? null : refs?.[refIndex];
+        if (!isHistorical) refIndex++;
 
         if (isAnchor) {
           currentTurn = null;
           const elementRect = element?.getBoundingClientRect();
           currentTurn = {
+            entryId: isHistorical ? historyPrefix[messageIndex].entryId : entryIds[messageIndex - historyPrefix.length],
             userMessage: message as UserMessage | CustomMessage,
             assistantPreviews: [],
             scrollTop: elementRect
@@ -453,7 +469,7 @@ export function ChatMinimap({
       updateScroll();
     }, 50);
     return () => clearTimeout(timeout);
-  }, [messages.length, measureNodes, updateScroll]);
+  }, [allMessages, measureNodes, updateScroll]);
 
   const scrollToNode = useCallback((node: NodeInfo, behavior: ScrollBehavior) => {
     const scrollEl = scrollContainer.current;
@@ -461,7 +477,7 @@ export function ChatMinimap({
     lockActiveNode(node.index);
     if (node.targetTurn.scrollTop === null) {
       pendingNavigationRef.current = { nodeIndex: node.index, target: "user" };
-      onRevealHistory();
+      onRevealHistory(node.targetTurn.entryId);
       return;
     }
     const targetTop = Math.max(
@@ -481,7 +497,7 @@ export function ChatMinimap({
         target: "assistant",
         assistantIndex,
       };
-      onRevealHistory();
+      onRevealHistory(node.targetTurn.entryId);
       return;
     }
     const containerRect = scrollEl.getBoundingClientRect();
@@ -530,7 +546,7 @@ export function ChatMinimap({
         assistantIndex,
         headingIndex,
       };
-      onRevealHistory();
+      onRevealHistory(node.targetTurn.entryId);
       return;
     }
     const heading = answerElement.querySelectorAll<HTMLElement>("h1, h2, h3").item(headingIndex);

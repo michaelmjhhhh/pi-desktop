@@ -126,3 +126,10 @@ is available, record the check as skipped; do not count it as passed.
 - Move into the card, then click its prompt or reply outline: the card remains usable and the conversation jumps to the corresponding message.
 - Use Tab and arrow keys on the rail, then Escape: the preview follows keyboard focus and closes with Escape.
 - Resize the chat with the file panel open and inspect markers near the top/bottom: the card stays within the chat, with internal scrolling for long outlines.
+
+### Full-session message rail
+
+- Open a long session directly at the latest message: the rail should show all turns immediately, without scrolling upward first.
+- Scroll upward through additional history pages: existing markers should retain their count and order.
+- Hover an old marker, then click it: its focused preview appears, history loads, and the chat jumps to that turn. Check both prompt and reply targets.
+- Switch branches and sessions, then send a new message: the rail should represent only the selected conversation and add new turns without duplicates.

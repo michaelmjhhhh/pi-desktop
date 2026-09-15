@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
-import { resolveSessionPath, buildSessionContext } from "@/lib/session-reader";
+import { resolveSessionPath, buildSessionContext, buildSessionNavigation } from "@/lib/session-reader";
 import { getRpcSession } from "@/lib/rpc-manager";
 
 export async function GET(
@@ -38,7 +38,7 @@ export async function GET(
       sessionId: id,
     });
 
-    return NextResponse.json({ context, tail, before: before ?? null });
+    return NextResponse.json({ context, ...(!before ? { navigation: buildSessionNavigation(sm.getEntries() as never, leafId) } : {}), tail, before: before ?? null });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

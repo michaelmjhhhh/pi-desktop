@@ -204,7 +204,7 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
   const [restoreAnchorReady, setRestoreAnchorReady] = useState(false);
 
   const {
-    loading, error, messages, entryIds, historyCursor, hasEarlierMessages, streamState,
+    data, loading, error, messages, entryIds, historyCursor, hasEarlierMessages, streamState,
     agentRunning, bashRunning, pendingBash, modelNames, modelList, modelError, modelScopeWarnings, modelThinkingLevels, modelThinkingLevelMaps, toolPreset, thinkingLevel,
     retryInfo, contextUsage, forkingEntryId,
     isCompacting, compactError, compactResult, displayModel: displayModelValue, modelSwitching, sessionStats,
@@ -674,9 +674,26 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
     return history.reverse();
   }, [messages]);
   const messageRefs = useMessageRefs(visibleMessages.length);
-  const revealHistoryForMinimap = useCallback(() => {
-    setVisibleCount((current) => Math.max(current, messages.length * 2));
-  }, [messages.length]);
+  const revealHistoryForMinimap = useCallback(async (entryId?: string) => {
+    const sid = sessionIdRef.current;
+    let history = searchHistoryRef.current;
+    let loadedCount = messages.length;
+    if (sid && entryId && !history.entryIds.includes(entryId)) {
+      if (loadingOlderRef.current) return;
+      loadingOlderRef.current = true;
+      try {
+        while (history.hasEarlierMessages && history.historyCursor && !history.entryIds.includes(entryId)) {
+          const context = await loadContext(sid, activeLeafId, history.historyCursor, { tail: 200 });
+          if (!context || sessionIdRef.current !== sid) return;
+          loadedCount += context.messages.length;
+          history = { entryIds: context.entryIds, historyCursor: context.oldestEntryId, hasEarlierMessages: context.hasMore };
+        }
+      } finally {
+        loadingOlderRef.current = false;
+      }
+    }
+    setVisibleCount((current) => Math.max(current, loadedCount * 2));
+  }, [activeLeafId, loadContext, messages.length, sessionIdRef]);
 
   const isEmptyNew = isNew && messages.length === 0 && !streamState.isStreaming && !sessionBusy;
   const hasStreamingContent = Boolean(streamState.streamingMessage?.content.length);
@@ -1159,6 +1176,8 @@ export function ChatWindow({ session, searchTarget, onSearchTargetHandled, initi
         {pendingScrollRestore ? null : (
           <ChatMinimap
             messages={messages}
+            entryIds={entryIds}
+            navigation={data?.navigation}
             streamingMessage={streamState.streamingMessage}
             scrollContainer={scrollContainerRef}
             messageRefs={messageRefs}

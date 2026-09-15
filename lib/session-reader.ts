@@ -7,7 +7,7 @@ import { readdir } from "fs/promises";
 import { isAbsolute, join, normalize as normalizePath, relative, resolve as resolvePath, sep } from "path";
 import type { AgentMessage, ImageContent, SessionEntry, SessionHeader, SessionInfo, SessionContext } from "./types";
 import { normalizeToolCalls } from "./normalize";
-import { getThinkingPreview } from "./message-display";
+import { isMessageGroupAnchor, splitFinalAssistantBlocks, getThinkingPreview } from "./message-display";
 import { projectIdentityKey } from "./project-identity";
 import { sessionPathKey } from "./session-path";
 import { MAX_TOOL_RESULT_IMAGE_BYTES, TOOL_RESULT_IMAGE_MIMES } from "./tool-result-images";
@@ -443,6 +443,28 @@ export interface BuildSessionContextOptions {
   excludeLeaf?: boolean;
   /** Session id used to build lazy URLs for historical tool-result images. */
   sessionId?: string;
+}
+
+/** Full-branch text-only navigation, independent of the loaded history page. */
+export function buildSessionNavigation(entries: SessionEntry[], leafId?: string | null) {
+  if (leafId === null) return [];
+  return sliceActiveBranch(entries, leafId ?? null, entries.length).flatMap((entry) => {
+    if (entry.type === "message" && entry.message.role !== "user" && entry.message.role !== "assistant") return [];
+    const message = entryToUiMessage(entry, {});
+    if (!message || (!isMessageGroupAnchor(message) && message.role !== "assistant")) return [];
+    const content = message.role === "assistant"
+      ? splitFinalAssistantBlocks(message).answerBlocks
+      : "content" in message ? message.content : "";
+    const text = (typeof content === "string" ? content : content
+      .filter((block) => block.type === "text")
+      .map((block) => "text" in block ? block.text : "").join("\n\n")).slice(0, 2000);
+    if (message.role === "assistant" && !text) return [];
+    return [{ entryId: entry.id, message: {
+      role: message.role,
+      ...(message.role === "custom" ? { customType: message.customType } : {}),
+      content: [{ type: "text", text }],
+    } as AgentMessage }];
+  });
 }
 
 export function buildSessionContext(
