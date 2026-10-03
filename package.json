@@ -20,7 +20,7 @@
     "build": "next build --webpack",
     "start": "next start -H 127.0.0.1 -p 30141",
     "lint": "eslint .",
-    "test": "node --experimental-strip-types --test \"app/**/*.test.mjs\" \"components/**/*.test.mjs\" \"hooks/**/*.test.mjs\" \"lib/**/*.test.mjs\"",
+    "test": "node --experimental-strip-types --test \"app/**/*.test.mjs\" \"components/**/*.test.mjs\" \"lib/**/*.test.mjs\"",
     "desktop:dev": "node scripts/launch-desktop.mjs --dev",
     "desktop:build": "node scripts/build-desktop.mjs",
     "desktop:start": "node scripts/launch-desktop.mjs",

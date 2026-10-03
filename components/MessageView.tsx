@@ -340,16 +340,7 @@ function UserMessageView({ message, cwd, onOpenFile, entryId, onFork, forking, o
   const imageBlocksNode = imageBlocks.length > 0 && (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: content ? 8 : 0 }}>
       {imageBlocks.map((img, i) => {
-        // lib/types.ts ImageContent uses {source:{type,data,media_type,url}}
-        // pi-ai on-disk format uses flat {data, mimeType} — handle both
-        const flat = img as unknown as { data?: string; mimeType?: string };
-        const src = img.source
-          ? img.source.type === "base64"
-            ? `data:${img.source.media_type};base64,${img.source.data}`
-            : img.source.url ?? ""
-          : flat.data
-            ? `data:${flat.mimeType};base64,${flat.data}`
-            : "";
+        const src = imageSource(img);
         return (
           <ImagePreview key={i} src={src}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1672,13 +1663,12 @@ function getMessageImages(content: CustomMessage["content"] | UserMessage["conte
 }
 
 function imageSource(img: ImageContent): string {
-  const flat = img as unknown as { data?: string; mimeType?: string };
-  if (img.source) {
+  if ("source" in img) {
     return img.source.type === "base64"
       ? `data:${img.source.media_type};base64,${img.source.data}`
       : img.source.url ?? "";
   }
-  return flat.data ? `data:${flat.mimeType};base64,${flat.data}` : "";
+  return img.data ? `data:${img.mimeType};base64,${img.data}` : "";
 }
 
 function safeJson(value: unknown): string {

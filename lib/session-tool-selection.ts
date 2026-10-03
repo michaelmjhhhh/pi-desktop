@@ -1,6 +1,10 @@
 import type { SessionManager } from "@earendil-works/pi-coding-agent";
 import { PRESET_FULL } from "./tool-presets";
-import type { SessionEntry } from "./types";
+export interface SessionMetadataEntry {
+  type: string;
+  customType?: string;
+  data?: unknown;
+}
 
 export const TOOL_SELECTION_TYPE = "pi-web:tool-selection";
 
@@ -23,7 +27,7 @@ function parseToolSelectionData(data: unknown): string[] | undefined {
 }
 
 /** Return the newest valid persisted selection. Undefined identifies legacy sessions. */
-export function readSessionToolSelection(entries: readonly SessionEntry[]): string[] | undefined {
+export function readSessionToolSelection(entries: readonly SessionMetadataEntry[]): string[] | undefined {
   for (let index = entries.length - 1; index >= 0; index -= 1) {
     const entry = entries[index];
     if (entry.type !== "custom" || entry.customType !== TOOL_SELECTION_TYPE) continue;

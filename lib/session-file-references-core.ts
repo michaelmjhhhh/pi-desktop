@@ -1,4 +1,6 @@
-import type { SessionEntry } from "./types";
+import type { SessionEntry as UiSessionEntry } from "./types";
+import type { SessionEntry as SdkSessionEntry } from "@earendil-works/pi-coding-agent";
+type SessionEntry = UiSessionEntry | SdkSessionEntry;
 
 const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

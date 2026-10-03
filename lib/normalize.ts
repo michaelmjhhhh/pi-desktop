@@ -1,4 +1,6 @@
-import type { AgentMessage, AssistantMessage, ToolCallContent } from "./types";
+import type { AgentMessage as SdkAgentMessage } from "@earendil-works/pi-agent-core";
+import type { ThinkingContent as SdkThinkingContent, ToolCall as SdkToolCall } from "@earendil-works/pi-ai";
+import type { AgentMessage, AssistantContentBlock, ToolCallContent } from "./types";
 
 function isObject(val: unknown): val is Record<string, unknown> {
   return typeof val === "object" && val !== null && !Array.isArray(val);
@@ -38,26 +40,37 @@ function normalizeToolCallBlock(
   return rawInput === undefined ? normalized : { ...normalized, rawInput };
 }
 
-function normalizeAssistantToolCalls(
-  msg: AgentMessage,
-  options: { includeStreamingRawInput?: boolean } = {},
-): AgentMessage {
-  // Non-assistant roles (user, toolResult, bashExecution, custom) are returned
-  // unchanged — only assistant messages go through tool-call field normalization.
-  if (msg.role !== "assistant") return msg;
-  const content = (msg as AssistantMessage).content;
-  if (!Array.isArray(content)) return msg;
-  const normalized = content.map((block) => {
-    const result = normalizeToolCallBlock(block, options);
-    return result ?? block;
-  });
-  return { ...msg, content: normalized } as AgentMessage;
+export type RawAgentMessage = AgentMessage | SdkAgentMessage;
+type RawBlock = AssistantContentBlock | SdkThinkingContent | SdkToolCall;
+
+function normalizeAssistantBlock(
+  block: RawBlock,
+  options: { includeStreamingRawInput?: boolean },
+): AssistantContentBlock {
+  if (block.type === "toolCall") return normalizeToolCallBlock(block, options)!;
+  return block;
 }
 
-export function normalizeToolCalls(msg: AgentMessage): AgentMessage {
+function normalizeAssistantToolCalls(
+  msg: RawAgentMessage,
+  options: { includeStreamingRawInput?: boolean } = {},
+): AgentMessage {
+  switch (msg.role) {
+    case "assistant": {
+      // Legacy JSONL messages may have a text string instead of content blocks.
+      const content: unknown = msg.content;
+      if (typeof content === "string") return { ...msg, content: [{ type: "text", text: content }] };
+      return { ...msg, content: msg.content.map((block) => normalizeAssistantBlock(block, options)) };
+    }
+    default:
+      return msg;
+  }
+}
+
+export function normalizeToolCalls(msg: RawAgentMessage): AgentMessage {
   return normalizeAssistantToolCalls(msg);
 }
 
-export function normalizeStreamingToolCalls(msg: AgentMessage): AgentMessage {
+export function normalizeStreamingToolCalls(msg: RawAgentMessage): AgentMessage {
   return normalizeAssistantToolCalls(msg, { includeStreamingRawInput: true });
 }

@@ -136,15 +136,11 @@ function Toggle({ checked, disabled, label, onChange }: { checked: boolean; disa
 export function AgentsConfig({
   cwd,
   sessionId = null,
-  onClose,
   onReloaded,
-  embedded = false,
 }: {
   cwd: string;
   sessionId?: string | null;
-  onClose: () => void;
   onReloaded?: () => void;
-  embedded?: boolean;
 }) {
   const { t } = useI18n();
   const [profiles, setProfiles] = useState<SubagentProfile[]>([]);
@@ -424,7 +420,7 @@ export function AgentsConfig({
   };
 
   return (
-    <ConfigPanelShell embedded={embedded} title={t("common.agents")} subtitle={shortenPath(cwd)} closeLabel={t("agents.close")} onClose={onClose}>
+    <ConfigPanelShell title={t("common.agents")}>
       <div className="agents-feature-setting">
         <div className="agents-feature-copy">
           <strong>{t("agents.builtInTitle")}</strong>

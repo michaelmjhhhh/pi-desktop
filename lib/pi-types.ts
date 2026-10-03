@@ -1,16 +1,13 @@
 import type {
+  AgentSession,
   AgentSessionEvent,
+  ExtensionUIContext,
+  ExtensionUIDialogOptions,
   BashOperations,
   SessionManager,
   SettingsManager,
   SlashCommandInfo,
-  Theme,
 } from "@earendil-works/pi-coding-agent";
-import type {
-  AgentLoopTurnUpdate,
-  AgentMessage as PiAgentMessage,
-  PrepareNextTurnContext,
-} from "@earendil-works/pi-agent-core";
 import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
 
 export interface ContextUsage {
@@ -87,45 +84,10 @@ interface ExtensionRunnerLike {
   setUIContext?(uiContext?: unknown, mode?: "tui" | "rpc" | "json" | "print"): void;
 }
 
-type DialogOptionsLike = {
-  signal?: AbortSignal;
-  timeout?: number;
+// Web dialogs also allow cancellation/timeouts on editor requests.
+export type ExtensionUiContextLike = Omit<ExtensionUIContext, "editor"> & {
+  editor(title: string, prefill?: string, options?: ExtensionUIDialogOptions): Promise<string | undefined>;
 };
-
-type WidgetOptionsLike = {
-  placement?: "aboveEditor" | "belowEditor";
-};
-
-export interface ExtensionUiContextLike {
-  select(title: string, options: string[], opts?: DialogOptionsLike): Promise<string | undefined>;
-  confirm(title: string, message: string, opts?: DialogOptionsLike): Promise<boolean>;
-  input(title: string, placeholder?: string, opts?: DialogOptionsLike): Promise<string | undefined>;
-  editor(title: string, prefill?: string, opts?: DialogOptionsLike): Promise<string | undefined>;
-  notify(message: string, type?: "info" | "warning" | "error"): void;
-  onTerminalInput(): () => void;
-  setStatus(key: string, text: string | undefined): void;
-  setWorkingMessage(message?: string): void;
-  setWorkingVisible(visible: boolean): void;
-  setWorkingIndicator(options?: { frames?: string[]; intervalMs?: number }): void;
-  setHiddenThinkingLabel(label?: string): void;
-  setWidget(key: string, content: string[] | ((...args: never[]) => unknown) | undefined, options?: WidgetOptionsLike): void;
-  setFooter(factory: unknown): void;
-  setHeader(factory: unknown): void;
-  setTitle(title: string): void;
-  custom<T = unknown>(...args: unknown[]): Promise<T>;
-  pasteToEditor(text: string): void;
-  setEditorText(text: string): void;
-  getEditorText(): string;
-  addAutocompleteProvider(): void;
-  setEditorComponent(): void;
-  getEditorComponent(): undefined;
-  readonly theme: Theme;
-  getAllThemes(): unknown[];
-  getTheme(name: string): undefined;
-  setTheme(theme: unknown): { success: boolean; error?: string };
-  getToolsExpanded(): boolean;
-  setToolsExpanded(expanded: boolean): void;
-}
 
 export interface AgentSessionLike {
   readonly sessionId: string;
@@ -135,28 +97,15 @@ export interface AgentSessionLike {
   readonly autoCompactionEnabled: boolean;
   readonly autoRetryEnabled: boolean;
   readonly model: ModelLike | undefined;
-  readonly modelRuntime: {
-    getModel: (provider: string, modelId: string) => ModelLike | undefined;
-    refresh: (options?: { allowNetwork?: boolean }) => Promise<unknown>;
-  };
+  readonly modelRuntime: AgentSession["modelRuntime"];
   readonly sessionManager: SessionManager;
   readonly settingsManager: SettingsManager;
-  readonly agent: {
-    state?: {
-      systemPrompt?: string;
-      thinkingLevel?: string;
-      streamingMessage?: PiAgentMessage;
-    };
-    prepareNextTurnWithContext?: (
-      context: PrepareNextTurnContext,
-      signal?: AbortSignal,
-    ) => Promise<AgentLoopTurnUpdate | undefined> | AgentLoopTurnUpdate | undefined;
-  };
+  readonly agent: AgentSession["agent"];
   readonly extensionRunner: ExtensionRunnerLike;
   readonly promptTemplates: readonly PromptTemplateLike[];
   readonly resourceLoader: ResourceLoaderLike;
 
-  readonly bindExtensions?: unknown;
+  readonly bindExtensions?: AgentSession["bindExtensions"];
   dispose(): void;
   reload(options?: { beforeSessionStart?: () => void | Promise<void> }): Promise<void>;
   subscribe(listener: (event: AgentSessionEvent) => void): () => void;

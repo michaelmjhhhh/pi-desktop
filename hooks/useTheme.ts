@@ -5,18 +5,13 @@ import { isDarkTheme, normalizeThemePreference, type ThemePreference, type Resol
 
 export type { ThemePreference, ResolvedTheme } from "@/lib/theme";
 
-type ThemeState = {
-  preference: ThemePreference;
-  theme: ResolvedTheme;
-};
-
 type ToggleOrigin = { x: number; y: number };
 
 const STORAGE_KEY = "pi-theme";
-const SERVER_SNAPSHOT: ThemeState = { preference: "light", theme: "light" };
+const SERVER_SNAPSHOT: ThemePreference = "light";
 
 const listeners = new Set<() => void>();
-let state: ThemeState | null = null;
+let state: ThemePreference | null = null;
 
 function emit(): void {
   listeners.forEach((cb) => cb());
@@ -44,14 +39,13 @@ function applyDomTheme(theme: ResolvedTheme): void {
   document.documentElement.classList.toggle("dark", isDarkTheme(theme));
 }
 
-function ensureState(): ThemeState {
+function ensureState(): ThemePreference {
   if (typeof window === "undefined") return SERVER_SNAPSHOT;
   if (state) return state;
 
   const preference = readStoredPreference();
-  const theme = preference;
-  applyDomTheme(theme);
-  state = { preference, theme };
+  applyDomTheme(preference);
+  state = preference;
   return state;
 }
 
@@ -62,7 +56,7 @@ function setThemeState(preference: ThemePreference): void {
   } catch {
     // ignore storage errors (private mode, quota, etc.)
   }
-  state = { preference, theme: preference };
+  state = preference;
   emit();
 }
 
@@ -74,11 +68,11 @@ function subscribe(cb: () => void): () => void {
   };
 }
 
-function getSnapshot(): ThemeState {
+function getSnapshot(): ThemePreference {
   return ensureState();
 }
 
-function getServerSnapshot(): ThemeState {
+function getServerSnapshot(): ThemePreference {
   return SERVER_SNAPSHOT;
 }
 
@@ -87,7 +81,7 @@ export function useTheme() {
 
   const setThemePreference = useCallback((nextPreference: ThemePreference, origin?: ToggleOrigin) => {
     const current = ensureState();
-    if (current.preference === nextPreference) return;
+    if (current === nextPreference) return;
     const apply = () => {
       setThemeState(nextPreference);
     };
@@ -130,9 +124,9 @@ export function useTheme() {
   }, []);
 
   return {
-    theme: snapshot.theme,
-    preference: snapshot.preference,
+    theme: snapshot,
+    preference: snapshot,
     setThemePreference,
-    isDark: isDarkTheme(snapshot.theme),
+    isDark: isDarkTheme(snapshot),
   };
 }

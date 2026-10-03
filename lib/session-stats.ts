@@ -1,4 +1,6 @@
-import type { AgentMessage, AgentUsage, SessionEntry } from "./types";
+import type { SessionEntry as SdkSessionEntry, SessionMessageEntry as SdkMessageEntry } from "@earendil-works/pi-coding-agent";
+import type { SessionEntry } from "./types";
+import type { AgentMessage, AgentUsage } from "./types";
 
 export interface SessionFileStats {
   userMessages: number;
@@ -37,19 +39,19 @@ function addUsage(stats: SessionFileStats, usage?: AgentUsage): void {
   stats.cost += usage.cost?.total ?? 0;
 }
 
-function addMessage(stats: SessionFileStats, message: AgentMessage): void {
+function addMessage(stats: SessionFileStats, message: AgentMessage | SdkMessageEntry["message"]): void {
   stats.totalMessages += 1;
   if (message.role === "user") {
     stats.userMessages += 1;
   } else if (message.role === "toolResult") {
     stats.toolResults += 1;
-    addUsage(stats, message.usage);
+    addUsage(stats, "usage" in message ? message.usage : undefined);
   } else if (message.role === "assistant") {
     stats.assistantMessages += 1;
     if (Array.isArray(message.content)) {
       stats.toolCalls += message.content.filter((c) => c.type === "toolCall").length;
     }
-    addUsage(stats, message.usage);
+    addUsage(stats, "usage" in message ? message.usage : undefined);
   }
 }
 
@@ -107,7 +109,7 @@ export function mergeSessionStats(
  * summarized away, which is what made the UI token/cost counters appear to be
  * reset after compaction.
  */
-export function computeSessionStats(entries: SessionEntry[]): SessionFileStats {
+export function computeSessionStats(entries: readonly (SessionEntry | SdkSessionEntry)[]): SessionFileStats {
   const stats = emptyStats();
 
   for (const entry of entries) {

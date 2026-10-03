@@ -1,3 +1,10 @@
+import type { ImageContent as SdkImageContent } from "@earendil-works/pi-ai";
+import type { AgentMessage as SdkAgentMessage } from "@earendil-works/pi-agent-core";
+// Load Pi's AgentMessage augmentation for its persisted summary roles.
+import type {} from "@earendil-works/pi-coding-agent";
+type BranchSummaryMessage = Extract<SdkAgentMessage, { role: "branchSummary" }>;
+type CompactionSummaryMessage = Extract<SdkAgentMessage, { role: "compactionSummary" }>;
+
 // Types mirrored from pi-mono coding-agent session-manager
 
 export interface SessionHeader {
@@ -21,7 +28,7 @@ export interface TextContent {
   text: string;
 }
 
-export interface ImageContent {
+export interface LegacyImageContent {
   type: "image";
   source: {
     type: "base64" | "url";
@@ -30,6 +37,8 @@ export interface ImageContent {
     url?: string;
   };
 }
+
+export type ImageContent = LegacyImageContent | SdkImageContent;
 
 export interface ThinkingContent {
   type: "thinking";
@@ -112,7 +121,8 @@ export interface BashExecutionMessage {
   timestamp?: number;
 }
 
-export type AgentMessage = UserMessage | AssistantMessage | ToolResultMessage | CustomMessage | BashExecutionMessage;
+// SDK summaries can appear as message entries; retain their original roles and fields.
+export type AgentMessage = UserMessage | AssistantMessage | ToolResultMessage | CustomMessage | BashExecutionMessage | BranchSummaryMessage | CompactionSummaryMessage;
 
 export type ExtensionUiRequest =
   | {

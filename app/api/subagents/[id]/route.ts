@@ -1,3 +1,4 @@
+import { readSubagentRequestJson, subagentErrorStatus } from "@/lib/subagent-errors";
 import { NextResponse } from "next/server";
 import { abortSubagent, getSubagentRun, steerSubagent } from "@/lib/rpc-manager";
 
@@ -23,7 +24,7 @@ export async function POST(
 ) {
   const { id } = await params;
   try {
-    const body = await req.json() as { action?: unknown; message?: unknown };
+    const body = await readSubagentRequestJson(req) as { action?: unknown; message?: unknown };
     if (body.action === "steer") {
       if (typeof body.message !== "string" || !body.message.trim()) {
         return NextResponse.json({ error: "message required" }, { status: 400 });
@@ -37,6 +38,6 @@ export async function POST(
     return NextResponse.json({ ok: true, run: await getSubagentRun(id) });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: message }, { status: message.includes("not running") ? 409 : 500 });
+    return NextResponse.json({ error: message }, { status: subagentErrorStatus(error) });
   }
 }

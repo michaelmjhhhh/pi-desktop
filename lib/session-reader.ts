@@ -1,11 +1,12 @@
 import {
   SessionManager,
+  type SessionEntry as SdkSessionEntry,
   getAgentDir,
 } from "@earendil-works/pi-coding-agent";
 import { closeSync, type Dirent, fstatSync, openSync, readSync } from "fs";
 import { readdir } from "fs/promises";
 import { isAbsolute, join, normalize as normalizePath, relative, resolve as resolvePath, sep } from "path";
-import type { AgentMessage, ImageContent, SessionEntry, SessionHeader, SessionInfo, SessionContext } from "./types";
+import type { AgentMessage, ImageContent, LegacyImageContent, SessionEntry as UiSessionEntry, SessionHeader, SessionInfo, SessionContext } from "./types";
 import { normalizeToolCalls } from "./normalize";
 import { isMessageGroupAnchor, splitFinalAssistantBlocks, getThinkingPreview } from "./message-display";
 import { projectIdentityKey } from "./project-identity";
@@ -16,6 +17,8 @@ import { readSubagentRun, SUBAGENT_META_TYPE } from "./subagents";
 import { listSessionsIncremental } from "./session-list-scanner";
 
 export { getAgentDir };
+
+type SessionEntry = UiSessionEntry | SdkSessionEntry;
 
 const SESSION_HEADER_MAX_BYTES = 64 * 1024;
 const SESSION_RELATION_MAX_BYTES = 256 * 1024;
@@ -407,7 +410,7 @@ export function readSessionHeader(filePath: string): SessionHeader | null {
 
 export function getSessionEntries(filePath: string): SessionEntry[] {
   const entries = SessionManager.open(filePath).getEntries();
-  return entries as unknown as SessionEntry[];
+  return entries;
 }
 
 function getSessionSettings(entries: SessionEntry[], leafId?: string | null): Pick<SessionContext, "thinkingLevel" | "model"> {
@@ -581,7 +584,7 @@ function deferToolResultBase64Images(
       image.bytes > 0 &&
       image.bytes <= MAX_TOOL_RESULT_IMAGE_BYTES
     ) {
-      const source: ImageContent["source"] = {
+      const source: LegacyImageContent["source"] = {
         type: "url",
         media_type: image.mime,
         url: `/api/sessions/${encodeURIComponent(sessionId)}/entries/${encodeURIComponent(entryId)}/tool-result-image?blockIndex=${blockIndex}`,

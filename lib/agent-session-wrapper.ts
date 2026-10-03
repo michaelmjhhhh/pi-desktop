@@ -1,4 +1,4 @@
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { AgentCommand, AgentCommandResult, AgentTool } from "./agent-protocol";
 import { getAgentDir, SessionManager, Theme } from "@earendil-works/pi-coding-agent";
 import { KeybindingsManager as TuiKeybindingsManager, TUI_KEYBINDINGS } from "@earendil-works/pi-tui";
 import { randomUUID } from "crypto";
@@ -28,7 +28,6 @@ export interface AgentEvent {
 }
 
 type EventListener = (event: AgentEvent) => void;
-type AgentRunCompleteListener = (sessionId: string) => void;
 
 type PendingUiResponse = {
   resolve: (response: ExtensionUiResponse) => void;
@@ -83,7 +82,6 @@ type ExtensionCommandContextActionsLike = {
 type AgentSessionWrapperOptions = {
   exactSystemPrompt?: () => string;
   chatOnly?: boolean;
-  onAgentRunComplete?: AgentRunCompleteListener;
   suppressCompletionNotifications?: boolean;
 };
 
@@ -129,7 +127,6 @@ const COMMANDS_ALLOWED_DURING_SESSION_REPLACEMENT = new Set([
 ]);
 
 const CODING_TOOL_NAMES = ["read", "bash", "powershell", "edit", "write", "grep", "find", "ls"];
-export const THINKING_LEVEL_NAMES = new Set<ThinkingLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
 // Extensions require a complete Theme, while the web UI applies its own styling.
 class PlainTextTheme extends Theme {
@@ -191,14 +188,11 @@ export class AgentSessionWrapper {
   private pendingPromptCount = 0;
   private activeMutatingCommands = 0;
   private sessionReplacement: "fork" | "clone" | null = null;
-  private agentRunNeedsCompletion = false;
   private promptAdmissionTail: Promise<void> = Promise.resolve();
   private extensionsBound = false;
   private extensionBindingPromise: Promise<void> | null = null;
-  private extensionBindingError: unknown = null;
   private readonly exactSystemPrompt?: () => string;
   private readonly chatOnly: boolean;
-  private readonly onAgentRunComplete?: AgentRunCompleteListener;
   private readonly suppressCompletionNotifications: boolean;
   private unsubscribe: (() => void) | null = null;
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -214,7 +208,6 @@ export class AgentSessionWrapper {
   ) {
     this.exactSystemPrompt = options.exactSystemPrompt;
     this.chatOnly = options.chatOnly ?? false;
-    this.onAgentRunComplete = options.onAgentRunComplete;
     this.suppressCompletionNotifications = options.suppressCompletionNotifications ?? false;
     this.installExactSystemPromptContinuation();
     this.applyExactSystemPrompt();
@@ -258,26 +251,13 @@ export class AgentSessionWrapper {
 
   start(): void {
     this.unsubscribe = this.inner.subscribe((event: AgentEvent) => {
-      if (event.type === "agent_start") this.agentRunNeedsCompletion = true;
       if (event.type === "agent_end") {
         invalidateSessionListCache();
       }
       if (IDLE_RESET_EVENT_TYPES.has(event.type)) this.resetIdleTimer();
       this.emit(event);
-      if (event.type === "agent_settled") this.notifyAgentRunCompleteIfIdle();
     });
     this.resetIdleTimer();
-  }
-
-  private notifyAgentRunCompleteIfIdle(): void {
-    if (!this.agentRunNeedsCompletion || this.isRunning()) return;
-    this.agentRunNeedsCompletion = false;
-    if (this.suppressCompletionNotifications) return;
-    try {
-      this.onAgentRunComplete?.(this.sessionId);
-    } catch (error) {
-      console.error("[pi-web] completion listener failed:", error instanceof Error ? error.message : error);
-    }
   }
 
   beginExtensionBinding(): void {
@@ -297,19 +277,11 @@ export class AgentSessionWrapper {
     }
     if (this.extensionBindingPromise) return this.extensionBindingPromise;
 
-    this.extensionBindingError = null;
     this.extensionBindingPromise = (async () => {
       if (!this._alive) return;
       const uiContext = this.createExtensionUiContext();
       if (typeof this.inner.bindExtensions === "function") {
-        const bindExtensions = this.inner.bindExtensions as (bindings: {
-          uiContext?: ExtensionUiContextLike;
-          mode?: "rpc";
-          commandContextActions?: ExtensionCommandContextActionsLike;
-          shutdownHandler?: () => void;
-          onError?: (error: { extensionPath: string; event: string; error: string }) => void;
-        }) => Promise<void>;
-        await bindExtensions.call(this.inner, {
+        await this.inner.bindExtensions({
           uiContext,
           mode: "rpc",
           commandContextActions: this.createExtensionCommandContextActions(),
@@ -333,10 +305,7 @@ export class AgentSessionWrapper {
       this.extensionsBound = true;
       this.applyExactSystemPrompt();
       console.log(`[pi-web] session_start dispatched to extensions for session ${this.inner.sessionId}`);
-    })().catch((err) => {
-      this.extensionBindingError = err;
-      throw err;
-    });
+    })();
 
     return this.extensionBindingPromise;
   }
@@ -346,11 +315,6 @@ export class AgentSessionWrapper {
       if (this.extensionBindingPromise) await this.extensionBindingPromise;
     } catch (err) {
       throw err instanceof Error ? err : new Error(String(err));
-    }
-    if (this.extensionBindingError) {
-      throw this.extensionBindingError instanceof Error
-        ? this.extensionBindingError
-        : new Error(String(this.extensionBindingError));
     }
   }
 
@@ -502,8 +466,9 @@ export class AgentSessionWrapper {
     }
   }
 
-  async send(command: Record<string, unknown>): Promise<unknown> {
-    const type = command.type as string;
+  send<C extends AgentCommand>(command: C): Promise<AgentCommandResult<C["type"]>>;
+  async send(command: AgentCommand): Promise<unknown> {
+    const type = command.type;
     const allowedDuringReplacement = COMMANDS_ALLOWED_DURING_SESSION_REPLACEMENT.has(type);
     if (this.sessionReplacement && !allowedDuringReplacement) {
       throw new Error("Session is being copied to a new session");
@@ -541,8 +506,8 @@ export class AgentSessionWrapper {
           if (this.extensionUiAbortController.signal.aborted) {
             this.extensionUiAbortController = new AbortController();
           }
-          const promptImages = command.images as Array<{ type: "image"; data: string; mimeType: string }> | undefined;
-          const streamingBehavior = command.streamingBehavior as "steer" | "followUp" | undefined;
+          const promptImages = command.images;
+          const streamingBehavior = command.streamingBehavior;
           let preflightAccepted = false;
           let preflightSettled = false;
           let promptSettled = false;
@@ -551,7 +516,6 @@ export class AgentSessionWrapper {
           const preflight = new Promise<void>((resolve, reject) => {
             acceptPreflight = () => {
               preflightAccepted = true;
-              this.agentRunNeedsCompletion = true;
               if (preflightSettled) return;
               preflightSettled = true;
               resolve();
@@ -567,13 +531,12 @@ export class AgentSessionWrapper {
             promptSettled = true;
             this.pendingPromptCount = Math.max(0, this.pendingPromptCount - 1);
             this.resetIdleTimer();
-            this.notifyAgentRunCompleteIfIdle();
           };
 
           this.pendingPromptCount += 1;
           let prompt: Promise<void>;
           try {
-            prompt = this.inner.prompt(command.message as string, {
+            prompt = this.inner.prompt(command.message, {
               ...(promptImages?.length ? { images: promptImages } : {}),
               ...(streamingBehavior ? { streamingBehavior } : {}),
               source: "rpc",
@@ -648,7 +611,6 @@ export class AgentSessionWrapper {
           autoCompactionEnabled: this.inner.autoCompactionEnabled,
           autoRetryEnabled: this.inner.autoRetryEnabled,
           model: model ? { id: model.id, provider: model.provider } : undefined,
-          messageCount: 0,
           pendingMessageCount: this.inner.pendingMessageCount,
           queuedMessages: {
             steering: [...this.inner.getSteeringMessages()],
@@ -683,7 +645,7 @@ export class AgentSessionWrapper {
           throw new Error("Cannot fork while the session is running");
         }
         return this.withSessionReplacement("fork", async () => {
-          const entryId = command.entryId as string;
+          const entryId = command.entryId;
           const sessionManager = this.inner.sessionManager;
           const currentSessionFile = this.inner.sessionFile;
 
@@ -721,7 +683,7 @@ export class AgentSessionWrapper {
         if (this.isSessionRunningForReplacement()) {
           throw new Error("Cannot fork while the session is running");
         }
-        const entryId = command.entryId as string;
+        const entryId = command.entryId;
         const sessionManager = this.inner.sessionManager;
         const currentSessionFile = this.inner.sessionFile;
         if (!sessionManager.isPersisted()) return { cancelled: true };
@@ -771,12 +733,12 @@ export class AgentSessionWrapper {
         if (this.inner.isBashRunning) {
           throw new Error("Cannot navigate while a shell command is running");
         }
-        const result = await this.inner.navigateTree(command.targetId as string, {});
+        const result = await this.inner.navigateTree(command.targetId, {});
         return { cancelled: result.cancelled };
       }
 
       case "set_thinking_level": {
-        const level = command.level as string;
+        const level = command.level;
         this.inner.setThinkingLevel(level);
         // setThinkingLevel clamps xhigh→high for models where supportsXhigh()===false.
         // If the model has DeepSeek thinking compat (reasoningEffortMap maps xhigh→max),
@@ -791,7 +753,7 @@ export class AgentSessionWrapper {
       case "compact": {
         try {
           return await this.withFinalIdleReset(() =>
-            this.inner.compact(command.customInstructions as string | undefined)
+            this.inner.compact(command.customInstructions)
           );
         } finally {
           invalidateSessionListCache();
@@ -799,7 +761,7 @@ export class AgentSessionWrapper {
       }
 
       case "set_session_name": {
-        const name = (command.name as string | undefined)?.trim();
+        const name = command.name.trim();
         if (!name) throw new Error("Session name cannot be empty");
         this.inner.setSessionName(name);
         invalidateSessionListCache();
@@ -818,7 +780,7 @@ export class AgentSessionWrapper {
       }
 
       case "set_auto_compaction": {
-        this.inner.setAutoCompactionEnabled(command.enabled as boolean);
+        this.inner.setAutoCompactionEnabled(command.enabled);
         return null;
       }
 
@@ -829,14 +791,14 @@ export class AgentSessionWrapper {
       }
 
       case "steer": {
-        const steerImages = command.images as Array<{ type: "image"; data: string; mimeType: string }> | undefined;
-        await this.inner.steer(command.message as string, steerImages?.length ? steerImages : undefined);
+        const steerImages = command.images;
+        await this.inner.steer(command.message, steerImages?.length ? steerImages : undefined);
         return null;
       }
 
       case "follow_up": {
-        const followImages = command.images as Array<{ type: "image"; data: string; mimeType: string }> | undefined;
-        await this.inner.followUp(command.message as string, followImages?.length ? followImages : undefined);
+        const followImages = command.images;
+        await this.inner.followUp(command.message, followImages?.length ? followImages : undefined);
         return null;
       }
 
@@ -845,8 +807,11 @@ export class AgentSessionWrapper {
         const active = new Set<string>(this.inner.getActiveToolNames());
         return all.map((t) => ({
           ...t,
+          parameters: t.parameters && typeof t.parameters === "object" && !Array.isArray(t.parameters)
+            ? t.parameters as Record<string, unknown>
+            : undefined,
           active: active.has(t.name),
-        }));
+        } satisfies AgentTool));
       }
 
       case "get_commands": {
@@ -879,7 +844,7 @@ export class AgentSessionWrapper {
       }
 
       case "set_tools": {
-        const toolNames = command.toolNames as string[];
+        const toolNames = command.toolNames;
         this.setActiveToolSelection(toolNames);
         return null;
       }
@@ -909,17 +874,17 @@ export class AgentSessionWrapper {
       }
 
       case "extension_ui_response": {
-        this.resolveExtensionUiResponse(command as ExtensionUiResponse);
+        this.resolveExtensionUiResponse(command);
         return null;
       }
 
       case "extension_ui_input": {
-        this.handleExtensionUiInput(command.id as string, command.data as string);
+        this.handleExtensionUiInput(command.id, command.data);
         return null;
       }
 
       case "set_auto_retry": {
-        this.inner.setAutoRetryEnabled(command.enabled as boolean);
+        this.inner.setAutoRetryEnabled(command.enabled);
         return null;
       }
 
@@ -928,10 +893,10 @@ export class AgentSessionWrapper {
           throw new Error("Cannot run a shell command while the session is busy");
         }
         const execution = this.inner.executeBash(
-          command.command as string,
+          command.command,
           undefined,
           {
-            excludeFromContext: command.excludeFromContext as boolean | undefined,
+            excludeFromContext: command.excludeFromContext,
             operations: createProjectCommandBashOperations({
               shellPath: this.inner.settingsManager.getShellPath(),
             }),

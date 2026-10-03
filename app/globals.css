@@ -1729,3 +1729,13 @@ span.token.table {
 .workspace-panel-tabs { height: 100%; gap: 3px; padding: 6px; background: transparent; }
 .workspace-panel-tabs > [role="tab"] { border-radius: var(--control-radius); }
 .chat-input-textarea::placeholder { color: var(--text-dim); opacity: 1; }
+
+.workspace-tab-close { background: transparent; color: var(--text-dim); }
+.workspace-tab-close:hover { background: var(--bg-hover); color: var(--text); }
+
+.file-change-row:hover { background: var(--bg-hover); }
+
+.file-tree-row:hover, .file-tree-row:focus-within { background: var(--bg-hover); }
+.file-tree-action { visibility: hidden; }
+.file-tree-row:hover .file-tree-action, .file-tree-row:focus-within .file-tree-action { visibility: visible; }
+.file-tree-row:hover .file-tree-status, .file-tree-row:focus-within .file-tree-status { visibility: hidden; }

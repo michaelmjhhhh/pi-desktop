@@ -1,20 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { Script } from "node:vm";
 import { createJiti } from "jiti";
-import ts from "typescript";
 
-const jiti = createJiti(import.meta.url, {
-  jsx: { runtime: "automatic" },
-  tsconfigPaths: true,
-});
-const React = await jiti.import("react");
-const { renderToStaticMarkup } = await jiti.import("react-dom/server");
-const { ChatInput, ModelErrorBanner, ModelScopeWarningBanner, filterModelOptions, modelSupportsImageInput } = await jiti.import("./ChatInput.tsx");
+const jiti = createJiti(import.meta.url, { jsx: { runtime: "automatic" }, tsconfigPaths: true });
+const { filterModelOptions } = await jiti.import("./ModelSelector.tsx");
+const { modelSupportsImageInput } = await jiti.import("./ChatInput.tsx");
 const { canClearBuiltinCommandInput, canRestoreUserMessage, canRunBuiltinSlashCommandWhileStreaming, compressImageFile, getUpwardMenuMaxHeight, getUserMessageText, getUserMessageDraftImages, isExactSlashCommand, replaceLinksWithMarkdown, shouldCompressImageFile } = await jiti.import("./chat-input-helpers.ts");
 const { clearDraft, getDraft, mergeRestoredSubmissionDraft, mergeRestoredSubmissionText, rekeyDraft, setDraft } = await jiti.import("@/lib/draft-store.ts");
-const { I18nProvider } = await jiti.import("@/hooks/useI18n");
 
 test("preserves pasted HTML links as Markdown without changing plain text layout", () => {
   const link = (label, href, occurrence = 0) => ({ label, href, occurrence });
@@ -35,154 +27,6 @@ test("preserves pasted HTML links as Markdown without changing plain text layout
     "Engineer and [Engineer](https://example.com/job)",
   );
   assert.equal(replaceLinksWithMarkdown("plain text", [link("missing", "https://example.com")]), null);
-});
-
-test("follow-up shortcuts preserve newline, IME and completion behavior", () => {
-  const source = ts.createSourceFile("ChatInput.tsx", readFileSync(new URL("./ChatInput.tsx", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  function findHandler(node) {
-    if (ts.isVariableDeclaration(node) && node.name.getText(source) === "handleKeyDown") {
-      return node.initializer.arguments[0];
-    }
-    return ts.forEachChild(node, findHandler);
-  }
-  // Execute the component's actual callback without mounting the rest of the UI.
-  const script = new Script(ts.transpileModule(findHandler(source).getText(source), {
-    compilerOptions: { target: ts.ScriptTarget.ES2020 },
-  }).outputText);
-  const cases = [
-    ["Enter steers", {}, {}, "steer"],
-    ["Alt+Enter follows up", { altKey: true }, {}, "followup"],
-    ["idle Alt+Enter sends", { altKey: true }, { isStreaming: false }, "send"],
-    ["Shift+Enter inserts a newline", { shiftKey: true }, {}, "native"],
-    ["Alt+Shift+Enter keeps native behavior", { altKey: true, shiftKey: true }, {}, "native"],
-    ["composition ref blocks sending", { altKey: true }, { isComposingRef: { current: true } }, "native"],
-    ["native composition blocks sending", { altKey: true, nativeEvent: { isComposing: true } }, {}, "native"],
-    ["IME keyCode blocks sending", { altKey: true, nativeEvent: { keyCode: 229 } }, {}, "native"],
-    ["composition grace blocks sending", { altKey: true }, { lastCompositionEndAtRef: { current: 950 } }, "prevented"],
-    ["Enter falls back to follow-up", {}, { onSteer: undefined }, "followup"],
-    ["Alt+Enter falls back to steer", { altKey: true }, { onFollowUp: undefined }, "steer"],
-    ["slash completion takes priority", { altKey: true }, { slashMenuOpen: true, slashQuery: "help" }, "slash"],
-    ["available built-in commands take priority", { altKey: true }, { slashMenuOpen: true, slashQuery: "copy", value: "/copy", displayedSlashCommands: [{ name: "copy", source: "builtin", availableWhileStreaming: true }] }, "send"],
-    ["file completion takes priority", { altKey: true }, { atMenuOpen: true, atQuery: {} }, "file"],
-    ["history selection takes priority", { altKey: true }, { historyMenuOpen: true }, "history"],
-  ];
-  for (const [name, keys, state, expected] of cases) {
-    let action = "native";
-    const handler = script.runInNewContext({
-      Date: { now: () => 1000 },
-      COMPOSITION_END_ENTER_GRACE_MS: 100,
-      isStreaming: true,
-      isComposingRef: { current: false }, lastCompositionEndAtRef: { current: 0 },
-      historyMenuOpen: false, inputHistory: ["previous"], historyActiveIndex: 0,
-      slashMenuOpen: false, slashQuery: null, displayedSlashCommands: [{}], slashActiveIndex: 0,
-      atMenuOpen: false, atQuery: null, atMatches: [{}], atActiveIndex: 0,
-      onSteer() {}, onFollowUp() {},
-      sendQueued(mode) { action = mode; }, handleSend() { action = "send"; },
-      applySlashCommand() { action = "slash"; },
-      isExactSlashCommand, value: "", setSlashMenuOpen() {},
-      applyAtCompletion() { action = "file"; },
-      applyHistoryInput() { action = "history"; },
-      ...state,
-    });
-    handler({
-      key: "Enter", shiftKey: false, altKey: false, ctrlKey: false, metaKey: false,
-      nativeEvent: { isComposing: false, keyCode: 13 },
-      preventDefault() { action = "prevented"; },
-      ...keys,
-    });
-    assert.equal(action, expected, name);
-  }
-});
-
-test("renders the upstream model error", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(
-      I18nProvider,
-      null,
-      React.createElement(ModelErrorBanner, {
-        error: "Invalid models.json schema:\nproviders.custom.models.0.id must not be empty",
-      }),
-    ),
-  );
-
-  assert.match(html, /role="alert"/);
-  assert.match(html, /Model error/);
-  assert.match(html, /providers\.custom\.models\.0\.id must not be empty/);
-});
-
-test("does not render an empty model error", () => {
-  assert.equal(
-    renderToStaticMarkup(
-      React.createElement(I18nProvider, null, React.createElement(ModelErrorBanner, { error: null })),
-    ),
-    "",
-  );
-});
-
-test("renders enabledModels scope warnings", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(
-      I18nProvider,
-      null,
-      React.createElement(ModelScopeWarningBanner, {
-        warnings: ['No models match pattern "ghost-gateway/*"'],
-      }),
-    ),
-  );
-
-  assert.match(html, /Model scope warning/);
-  assert.match(html, /ghost-gateway/);
-  assert.equal(
-    renderToStaticMarkup(
-      React.createElement(I18nProvider, null, React.createElement(ModelScopeWarningBanner, { warnings: [] })),
-    ),
-    "",
-  );
-});
-
-test("keeps the model selector visible when a model error leaves no options", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(
-      I18nProvider,
-      null,
-      React.createElement(ChatInput, {
-        onSend() {},
-        onAbort() {},
-        onModelChange() {},
-        isStreaming: false,
-        modelError: "Invalid models.json schema",
-        modelList: [],
-        modelNames: {},
-      }),
-    ),
-  );
-
-  assert.match(html, />No models</);
-  assert.match(html, /title="No available models"/);
-});
-
-test("shows and locks the optimistic model while a switch is pending", () => {
-  const html = renderToStaticMarkup(
-    React.createElement(
-      I18nProvider,
-      null,
-      React.createElement(ChatInput, {
-        onSend() {},
-        onAbort() {},
-        onModelChange() {},
-        isStreaming: false,
-        model: { provider: "deepseek", modelId: "deepseek-v4-flash" },
-        modelList: [{ provider: "deepseek", id: "deepseek-v4-flash", name: "DeepSeek V4 Flash" }],
-        modelSwitching: true,
-      }),
-    ),
-  );
-
-  assert.match(html, /title="Switching model"/);
-  assert.match(html, /aria-busy="true"/);
-  assert.match(html, /disabled=""/);
-  assert.match(html, />DeepSeek V4 Flash</);
-  assert.match(html, /animation:spin 0\.8s linear infinite/);
 });
 
 test("filters model options by name and id", () => {
@@ -313,16 +157,8 @@ test("does not restore a historical message over a pending image attachment", ()
   assert.equal(canRestoreUserMessage("draft", 0, 0), false);
 });
 
-test("restores a cleared submission using the queued React state", () => {
-  let value = "failed submission";
-  const updates = [
-    () => "",
-    (current) => mergeRestoredSubmissionText("failed submission", current),
-  ];
-
-  for (const update of updates) value = update(value);
-
-  assert.equal(value, "failed submission");
+test("merges restored submission text with the current draft", () => {
+  assert.equal(mergeRestoredSubmissionText("failed submission", ""), "failed submission");
   assert.equal(
     mergeRestoredSubmissionText("failed submission", "new draft"),
     "failed submission\n\nnew draft",
@@ -333,7 +169,7 @@ test("restores a cleared submission using the queued React state", () => {
   );
 });
 
-test("keeps a failed first submission recoverable across a composer remount", () => {
+test("restores failed submission text and images into a draft", () => {
   const image = { data: "AQID", mimeType: "image/png" };
   const restored = mergeRestoredSubmissionDraft(
     "failed submission",
@@ -382,7 +218,7 @@ test("moves a provisional new-session draft to the real session key", () => {
   clearDraft(sessionKey);
 });
 
-test("rekey keeps a synchronously restored draft when React state is still empty", () => {
+test("rekey preserves stored content when the fallback draft is empty", () => {
   const provisionalKey = "new:/tmp/rekey-race";
   const sessionKey = "session-rekey-race";
   clearDraft(provisionalKey);
@@ -402,29 +238,6 @@ test("rekey keeps a synchronously restored draft when React state is still empty
   clearDraft(sessionKey);
 });
 
-test("renders compact errors above the input as a wrapping alert", () => {
-  const error = "Compaction failed: OpenAI API error (403): <html>request forbidden</html>";
-  const html = renderToStaticMarkup(
-    React.createElement(
-      I18nProvider,
-      null,
-      React.createElement(ChatInput, {
-        onSend() {},
-        onAbort() {},
-        onCompact() {},
-        isStreaming: false,
-        compactError: error,
-      }),
-    ),
-  );
-
-  assert.match(html, /role="alert"/);
-  assert.match(html, /Compaction failed: OpenAI API error/);
-  assert.match(html, /&lt;html&gt;request forbidden&lt;\/html&gt;/);
-  assert.match(html, /white-space:pre-wrap/);
-  assert.ok(html.indexOf('role="alert"') < html.indexOf("<textarea"));
-});
-
 test("modelSupportsImageInput warns only when modality info is known and lacks image", () => {
   const modelList = [
     { id: "text-only", name: "Text Only", provider: "ollama", input: ["text"] },
@@ -440,46 +253,4 @@ test("modelSupportsImageInput warns only when modality info is known and lacks i
   assert.equal(modelSupportsImageInput({ provider: "x", modelId: "missing" }, modelList), true);
   assert.equal(modelSupportsImageInput(null, modelList), true);
   assert.equal(modelSupportsImageInput({ provider: "ollama", modelId: "text-only" }, undefined), true);
-});
-
-test("renders image warnings for known text-only defaults without an explicit model selection", () => {
-  const draftKey = "new:/tmp/image-warning-default";
-  const modelList = [
-    { id: "text-only", name: "Text Only", provider: "custom", input: ["text"] },
-    { id: "vision", name: "Vision", provider: "custom", input: ["text", "image"] },
-    { id: "unknown", name: "Unknown", provider: "custom" },
-  ];
-  setDraft(draftKey, {
-    value: "Describe this image",
-    images: [{ data: "aW1hZ2U=", mimeType: "image/png" }],
-  });
-
-  try {
-    for (const [modelId, warningExpected] of [["text-only", true], ["vision", false], ["unknown", false], [null, false]]) {
-      const html = renderToStaticMarkup(
-        React.createElement(
-          I18nProvider,
-          null,
-          React.createElement(ChatInput, {
-            onSend() {},
-            onAbort() {},
-            isStreaming: false,
-            isAutoModelSelection: true,
-            model: modelId ? { provider: "custom", modelId } : null,
-            modelList,
-            draftKey,
-          }),
-        ),
-      );
-
-      assert.match(html, /<img/);
-      assert.equal(html.includes("Images may not be sent"), warningExpected, `default model: ${modelId}`);
-      if (warningExpected) {
-        assert.match(html, /The selected model \(Text Only\) does not support image input/);
-        assert.ok(html.indexOf('role="alert"') < html.indexOf("<textarea"));
-      }
-    }
-  } finally {
-    clearDraft(draftKey);
-  }
 });

@@ -617,15 +617,11 @@ function PackageDetail({
 export function PluginsConfig({
   cwd,
   sessionId,
-  onClose,
   onReloaded,
-  embedded = false,
 }: {
   cwd: string;
   sessionId: string | null;
-  onClose: () => void;
   onReloaded?: () => void;
-  embedded?: boolean;
 }) {
   const { t } = useI18n();
   const [data, setData] = useState<PluginsResponse | null>(null);
@@ -678,7 +674,7 @@ export function PluginsConfig({
     setUpdateStatuses({});
     setUpdateError(null);
     void loadPlugins();
-  }, [cwd]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cwd, loadPlugins]);
 
   useEffect(() => {
     if (selected) setLastSettingsSelection("plugins", selected, cwd);
@@ -852,7 +848,7 @@ export function PluginsConfig({
   const footerBusy = loading || busyKey !== null || checkingUpdates.size > 0 || updatingAll;
 
   return (
-    <ConfigPanelShell embedded={embedded} title={t("common.plugins")} subtitle={shortenPath(cwd)} closeLabel={t("i18n.close")} onClose={onClose}>
+    <ConfigPanelShell title={t("common.plugins")}>
 
         {!projectResourcesLoaded && (
           <div role="status" className="config-trust-notice">
@@ -979,7 +975,6 @@ export function PluginsConfig({
               </span>
             )}
         >
-          {!embedded && <ConfigButton onClick={onClose}>{t("i18n.close")}</ConfigButton>}
           {hasCheckablePackages && (
             <ConfigButton
               variant={availableUpdateCount > 0 ? "primary" : "secondary"}

@@ -19,7 +19,7 @@ export type ClientAssistantMessageEvent =
   | (JsonToolCallStartEvent & { id?: string; toolName?: string })
   | (JsonToolCallDeltaEvent & { id?: string; toolName?: string });
 
-export type ClientMessageUpdateEvent = Omit<JsonMessageUpdateEvent, "assistantMessageEvent"> & {
+export type ClientMessageUpdateEvent = Pick<JsonMessageUpdateEvent, "type"> & {
   assistantMessageEvent: ClientAssistantMessageEvent;
 };
 

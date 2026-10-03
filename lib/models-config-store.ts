@@ -61,21 +61,42 @@ export function getModelsConfigPath(): string {
   return join(getAgentDir(), "models.json");
 }
 
-export function readModelsConfig(
-  modelsPath = getModelsConfigPath(),
-): Record<string, unknown> {
-  if (!existsSync(modelsPath)) return { providers: {} };
-  try {
-    return JSON.parse(readFileSync(modelsPath, "utf8")) as Record<string, unknown>;
-  } catch {
-    return { providers: {} };
+export class ModelsConfigValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ModelsConfigValidationError";
   }
 }
 
+export function validateModelsConfig(data: unknown): asserts data is Record<string, unknown> {
+  if (!isRecord(data) || (data.providers !== undefined && !isRecord(data.providers))) {
+    throw new ModelsConfigValidationError("Invalid models.json: root and providers must be objects");
+  }
+  if (isRecord(data.providers) && Object.values(data.providers).some((provider) => !isRecord(provider))) {
+    throw new ModelsConfigValidationError("Invalid models.json: each provider must be an object");
+  }
+}
+
+export function readModelsConfig(
+  modelsPath = getModelsConfigPath(),
+): Record<string, unknown> {
+  let contents: string;
+  try {
+    contents = readFileSync(modelsPath, "utf8");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return { providers: {} };
+    throw error;
+  }
+  const data: unknown = JSON.parse(contents);
+  validateModelsConfig(data);
+  return data;
+}
+
 export function writeModelsConfig(
-  data: Record<string, unknown>,
+  data: unknown,
   modelsPath = getModelsConfigPath(),
 ): void {
+  validateModelsConfig(data);
   const dir = dirname(modelsPath);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   const normalized = normalizeModelsConfigCosts(sanitizeModelsConfig(data));

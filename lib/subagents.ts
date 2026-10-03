@@ -1,4 +1,5 @@
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import { SubagentError } from "./subagent-errors";
+import { isThinkingLevel, type ThinkingLevel } from "./thinking-levels";
 import { getAgentDir } from "@earendil-works/pi-coding-agent";
 import { dump as stringifyYaml } from "js-yaml";
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from "fs";
@@ -7,7 +8,8 @@ import { parseFrontmatter } from "./frontmatter";
 import { writePrivateFileAtomicSync } from "./atomic-file";
 import { isExistingPathWithinRoots } from "./path-security";
 import { PRESET_READ_ONLY } from "./tool-presets";
-import type { SessionEntry, SubagentSessionStatus } from "./types";
+import type { SubagentSessionStatus } from "./types";
+import type { SessionMetadataEntry } from "./session-tool-selection";
 
 export const SUBAGENT_META_TYPE = "pi-web:subagent";
 export const SUBAGENT_RESULT_TYPE = "pi-web:subagent-result";
@@ -90,7 +92,6 @@ export interface SubagentRunInfo {
 const DEFAULT_TOOLS = ["read", "bash", "edit", "write", "grep", "find", "ls"];
 const BUILTIN_TOOLS = new Set(DEFAULT_TOOLS);
 const SUBAGENT_CONTROL_TOOLS = new Set<string>(SUBAGENT_CONTROL_TOOL_NAMES);
-const THINKING_LEVELS = new Set<ThinkingLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
 const BUILTIN_PROFILES: SubagentProfile[] = [
   {
@@ -160,7 +161,7 @@ function parseProfileFile(filePath: string, scope: SubagentScope): SubagentProfi
     const source = readFileSync(filePath, "utf8");
     const { data, rest } = parseFrontmatter(source);
     const name = basename(filePath, ".md");
-    const thinkingValue = stringValue(data?.thinking) as ThinkingLevel | undefined;
+    const thinkingValue = stringValue(data?.thinking);
     const maxTurnsValue = typeof data?.max_turns === "number" ? Math.floor(data.max_turns) : undefined;
     const tools = parseTools(data?.tools, DEFAULT_TOOLS);
     const disallowedTools = new Set(parseTools(data?.disallowed_tools, []));
@@ -173,7 +174,7 @@ function parseProfileFile(filePath: string, scope: SubagentScope): SubagentProfi
       loadSkills: booleanValue(data?.load_skills, false),
       loadExtensions: booleanValue(data?.load_extensions, false),
       ...(stringValue(data?.model) ? { model: stringValue(data?.model) } : {}),
-      ...(thinkingValue && THINKING_LEVELS.has(thinkingValue) ? { thinking: thinkingValue } : {}),
+      ...(thinkingValue && isThinkingLevel(thinkingValue) ? { thinking: thinkingValue } : {}),
       ...(maxTurnsValue && maxTurnsValue > 0 ? { maxTurns: maxTurnsValue } : {}),
       inheritContext: booleanValue(data?.inherit_context, false),
       runInBackground: booleanValue(data?.run_in_background, false),
@@ -231,7 +232,7 @@ export function resolveSubagentProfile(cwd: string, name: string): SubagentProfi
 function assertProfileName(name: string): string {
   const normalized = name.trim();
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(normalized)) {
-    throw new Error("Agent name may contain only letters, numbers, dots, underscores, and hyphens");
+    throw new SubagentError("invalid_request", "Agent name may contain only letters, numbers, dots, underscores, and hyphens");
   }
   return normalized;
 }
@@ -239,7 +240,7 @@ function assertProfileName(name: string): string {
 function writableProfileDirectory(cwd: string, scope: SubagentWritableScope): string {
   if (scope === "global") return join(getAgentDir(), "agents");
   if (scope === "project") return join(resolve(cwd), ".pi", "agents");
-  throw new Error("Agent scope must be global or project");
+  throw new SubagentError("invalid_request", "Agent scope must be global or project");
 }
 
 function assertWritableProfileDirectory(cwd: string, scope: SubagentWritableScope): string {
@@ -249,11 +250,11 @@ function assertWritableProfileDirectory(cwd: string, scope: SubagentWritableScop
   let existingAncestor = dir;
   while (!existsSync(existingAncestor)) {
     const parent = dirname(existingAncestor);
-    if (parent === existingAncestor) throw new Error("Agent profile directory is outside the project root");
+    if (parent === existingAncestor) throw new SubagentError("access_denied", "Agent profile directory is outside the project root");
     existingAncestor = parent;
   }
   if (!isProjectProfilePathAllowed(cwd, existingAncestor)) {
-    throw new Error("Agent profile directory is outside the project root");
+    throw new SubagentError("access_denied", "Agent profile directory is outside the project root");
   }
   return dir;
 }
@@ -263,13 +264,19 @@ export function saveSubagentProfile(
   scope: SubagentWritableScope,
   profile: Omit<SubagentProfile, "scope" | "filePath">,
 ): SubagentProfile {
+  if (!Array.isArray(profile.tools) || profile.tools.some((tool) => typeof tool !== "string")
+    || typeof profile.displayName !== "string" || typeof profile.description !== "string"
+    || typeof profile.systemPrompt !== "string"
+    || (profile.model !== undefined && typeof profile.model !== "string")) {
+    throw new SubagentError("invalid_request", "Invalid agent profile fields");
+  }
   const name = assertProfileName(profile.name);
   const tools = [...new Set(profile.tools.filter((tool) => BUILTIN_TOOLS.has(tool)))];
-  if (profile.thinking && !THINKING_LEVELS.has(profile.thinking)) {
-    throw new Error(`Invalid thinking level: ${profile.thinking}`);
+  if (profile.thinking && !isThinkingLevel(profile.thinking)) {
+    throw new SubagentError("invalid_request", `Invalid thinking level: ${profile.thinking}`);
   }
   if (profile.maxTurns !== undefined && (!Number.isFinite(profile.maxTurns) || profile.maxTurns < 0)) {
-    throw new Error("Max turns must be a non-negative number");
+    throw new SubagentError("invalid_request", "Max turns must be a non-negative number");
   }
   const maxTurns = profile.maxTurns && profile.maxTurns > 0
     ? Math.floor(profile.maxTurns)
@@ -283,7 +290,7 @@ export function saveSubagentProfile(
   const dir = assertWritableProfileDirectory(cwd, scope);
   mkdirSync(dir, { recursive: true });
   if (scope === "project" && !isProjectProfilePathAllowed(cwd, dir)) {
-    throw new Error("Agent profile directory is outside the project root");
+    throw new SubagentError("access_denied", "Agent profile directory is outside the project root");
   }
   const filePath = join(dir, `${name}.md`);
   const frontmatter: Record<string, unknown> = {
@@ -333,7 +340,7 @@ type ValidSubagentMetadataData = Record<string, unknown> & {
   parentSessionPath: string;
 };
 
-function subagentMetadataData(entries: readonly SessionEntry[]): ValidSubagentMetadataData | null {
+function subagentMetadataData(entries: readonly SessionMetadataEntry[]): ValidSubagentMetadataData | null {
   const metaEntry = entries.find((entry) => entry.type === "custom" && entry.customType === SUBAGENT_META_TYPE);
   if (!metaEntry || metaEntry.type !== "custom" || !isRecord(metaEntry.data)) return null;
   const data = metaEntry.data;
@@ -343,7 +350,7 @@ function subagentMetadataData(entries: readonly SessionEntry[]): ValidSubagentMe
 
 /** Restore the isolated prompt and tool scope used by a persisted subagent session. */
 export function readSubagentSessionResources(
-  entries: readonly SessionEntry[],
+  entries: readonly SessionMetadataEntry[],
 ): SubagentSessionResources | null {
   const data = subagentMetadataData(entries);
   if (!data) return null;
@@ -383,7 +390,7 @@ export function withSubagentExtensionTools(
   ])];
 }
 
-export function readSubagentRun(entries: readonly SessionEntry[], sessionId: string, sessionPath: string): SubagentRunInfo | null {
+export function readSubagentRun(entries: readonly SessionMetadataEntry[], sessionId: string, sessionPath: string): SubagentRunInfo | null {
   const data = subagentMetadataData(entries);
   if (!data) return null;
   const resultEntry = [...entries].reverse().find((entry) => entry.type === "custom" && entry.customType === SUBAGENT_RESULT_TYPE);

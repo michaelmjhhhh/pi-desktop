@@ -10,21 +10,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function hasHeader(headers: Headers, name: string): boolean {
-  return headers.has(name);
-}
-
 function buildHeaders(api: string, apiKey: string | undefined, configured: Record<string, string>): Headers {
   const headers = new Headers(configured);
-  if (!hasHeader(headers, "accept")) headers.set("Accept", "application/json");
+  if (!headers.has("accept")) headers.set("Accept", "application/json");
   if (!apiKey) return headers;
 
   if (api === "anthropic-messages") {
-    if (!hasHeader(headers, "x-api-key")) headers.set("x-api-key", apiKey);
-    if (!hasHeader(headers, "anthropic-version")) headers.set("anthropic-version", "2023-06-01");
+    if (!headers.has("x-api-key")) headers.set("x-api-key", apiKey);
+    if (!headers.has("anthropic-version")) headers.set("anthropic-version", "2023-06-01");
   } else if (api === "google-generative-ai") {
-    if (!hasHeader(headers, "x-goog-api-key")) headers.set("x-goog-api-key", apiKey);
-  } else if (!hasHeader(headers, "authorization")) {
+    if (!headers.has("x-goog-api-key")) headers.set("x-goog-api-key", apiKey);
+  } else if (!headers.has("authorization")) {
     headers.set("Authorization", `Bearer ${apiKey}`);
   }
   return headers;
