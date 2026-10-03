@@ -1,3 +1,4 @@
+import { AgentProtocolError, getAgentCommandType, parseAgentCommand, readAgentRequestBody } from "@/lib/agent-protocol";
 import { readAgentState } from "@/lib/agent-state";
 import { NextResponse } from "next/server";
 import { resolveSessionPath } from "@/lib/session-reader";
@@ -13,16 +14,10 @@ export async function POST(
   let promptAccepted = false;
 
   try {
-    const body = await req.json() as { type: string; [key: string]: unknown };
-    commandType = typeof body.type === "string" ? body.type : undefined;
-    const requestedToolNames = body.toolNames;
-    if (
-      requestedToolNames !== undefined
-      && (!Array.isArray(requestedToolNames) || requestedToolNames.some((name) => typeof name !== "string"))
-    ) {
-      throw new Error("toolNames must be an array of strings");
-    }
-    const toolNames = requestedToolNames as string[] | undefined;
+    const requestBody = await readAgentRequestBody(req);
+    commandType = getAgentCommandType(requestBody);
+    const body = parseAgentCommand(requestBody);
+    const toolNames = body.toolNames;
 
     // Fast path: already-running session
     const existing = getRpcSession(id);
@@ -66,7 +61,7 @@ export async function POST(
       ...(commandType === "prompt" && !promptAccepted
         ? { code: "prompt_rejected", accepted: false }
         : {}),
-    }, { status: 500 });
+    }, { status: error instanceof AgentProtocolError ? 400 : 500 });
   }
 }
 

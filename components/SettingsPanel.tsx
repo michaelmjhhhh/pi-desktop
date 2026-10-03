@@ -379,10 +379,10 @@ export function SettingsPanel({ cwd, sessionId, initialSection, onClose, onSessi
 
           <main className="settings-dialog-main">
             {sectionHost("general", <GeneralSettings sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} />)}
-            {sectionHost("models", <ModelsConfig embedded onClose={onClose} />)}
-            {cwd && sectionHost("skills", <SkillsConfig embedded key={cwd} cwd={cwd} onClose={onClose} />)}
-            {cwd && sectionHost("agents", <AgentsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
-            {cwd && sectionHost("plugins", <PluginsConfig embedded key={cwd} cwd={cwd} sessionId={sessionId} onClose={onClose} onReloaded={onSessionReloaded} />)}
+            {sectionHost("models", <ModelsConfig />)}
+            {cwd && sectionHost("skills", <SkillsConfig key={cwd} cwd={cwd} />)}
+            {cwd && sectionHost("agents", <AgentsConfig key={cwd} cwd={cwd} sessionId={sessionId} onReloaded={onSessionReloaded} />)}
+            {cwd && sectionHost("plugins", <PluginsConfig key={cwd} cwd={cwd} sessionId={sessionId} onReloaded={onSessionReloaded} />)}
           </main>
         </div>
       </div>

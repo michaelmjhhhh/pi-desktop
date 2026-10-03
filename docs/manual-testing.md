@@ -133,3 +133,27 @@ is available, record the check as skipped; do not count it as passed.
 - Scroll upward through additional history pages: existing markers should retain their count and order.
 - Hover an old marker, then click it: its focused preview appears, history loads, and the chat jumps to that turn. Check both prompt and reply targets.
 - Switch branches and sessions, then send a new message: the rail should represent only the selected conversation and add new turns without duplicates.
+
+
+## Regressions transferred from automated UI tests
+
+These replace removed SSR/source-extraction checks. They are unchecked until a
+person performs them; helper tests do not establish the rendered behavior.
+
+- [ ] In the composer, use Enter/Alt+Enter while idle and streaming; use Shift+Enter and an IME. Open slash, file, and history suggestions before pressing Enter; confirm the active menu wins and read-only built-ins remain usable during a run.
+- [ ] Using browser Network controls, fail model-list requests, observe bounded retries and a visible error, then restore access. Switch sessions/close the affected view while a request is pending; confirm its late result does not overwrite the current selection. Confirm the selector remains usable with no options and cannot submit a pending model switch twice.
+- [ ] Enter a new-chat draft with images, select an existing session, return using New, switch projects/worktrees and return, then wait for remembered-session restoration and choose New again. Confirm the parked draft survives every route. Fail the first submission and recover its text/images across navigation without duplicating accepted messages.
+- [ ] Confirm provider errors appear both on an empty assistant response and after partial text. Check model-scope, compact, and text-only-model image warnings; clear/recover each error and confirm obsolete warnings disappear.
+- [ ] Check collapsed/expanded and deferred thinking, search matches in process/final blocks, streamed tool parameters, written-file actions, and the sub-agent session button. Confirm only the matched block is highlighted, partial parameters stay collapsed, and the intended child/file opens.
+- [ ] Render Markdown with single-tilde numeric ranges, double-tilde strikethrough, escaped backticks, inline/display math, local file links, and external links. Confirm formatting and destinations; a file URL without an in-app file handler must not open an arbitrary local file. Navigate math headings from the message rail.
+- [ ] During a streamed Mermaid answer, inspect source; after completion, inspect the actual preview, toggle source/preview, and try invalid/empty input. Confirm render errors are visible and recovery works. Export a diagram with multiline/Chinese labels and open the SVG to verify actual content.
+- [ ] With an extension showing ANSI-colored multiline widgets, confirm foreground/background/reset styles, literal HTML-like text, line breaks, and a subsequent plain snapshot. No stale styling should remain; HTML-like text must display as text.
+
+## Slop cleanup implementation checks
+
+- [ ] Open all four settings sections in wide/compact windows and both themes. Switch sections, open the provider picker, and dismiss/reopen settings. Confirm scrolling, unsaved input, and close controls still work.
+- [ ] Fail `GET /api/models-config` using Network controls. Confirm a visible error and disabled Save/add controls; restore access and use Refresh. Existing configuration should load without being replaced by empty defaults.
+- [ ] Open an image, audio file, and video file, then replace each file externally. Confirm refresh and updated dimensions/duration. Disconnect/reconnect, switch tabs during metadata loading, and delete a viewed file; confirm no stale metadata or repeated error events.
+- [ ] Stream text, thinking, and tool arguments; stop and start a new run, then reload mid-stream. Confirm normal completion, no stale stream resurrection, and both current and legacy image attachments survive edit/fork.
+- [ ] Exercise an extension widget update/clear and a timed editor/dialog. Confirm clearing removes the widget and cancellation/expiry resolves the request.
+- [ ] Switch language/theme and reload. Confirm persistence, file row/action hover states, tab close controls, and git badges in both themes.

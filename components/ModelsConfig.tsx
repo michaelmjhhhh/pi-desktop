@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { THINKING_LEVELS, type ThinkingLevel } from "@/lib/thinking-levels";
 import { useI18n } from "@/hooks/useI18n";
 import type { ModelCatalogPreset, ModelCatalogRecommendation } from "@/lib/model-catalog";
 import type { DiscoveredModel } from "@/lib/model-discovery";
@@ -516,8 +517,6 @@ function ProviderDetail({ name, provider, onChange, onRename, onDelete, onAddMod
 
 // ── ThinkingLevelMap editor ───────────────────────────────────────────────────
 
-const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
-type ThinkingLevel = typeof THINKING_LEVELS[number];
 
 const LEVEL_COLORS: Record<ThinkingLevel, string> = {
   off:     "var(--text-dim)",
@@ -1807,10 +1806,12 @@ function AddProviderPicker({
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function ModelsConfig({ onClose, embedded = false }: { onClose: () => void; embedded?: boolean }) {
+export function ModelsConfig() {
   const { t } = useI18n();
   const [config, setConfig] = useState<ModelsJson>({ providers: {} });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedOk, setSavedOk] = useState(false);
@@ -1830,22 +1831,33 @@ export function ModelsConfig({ onClose, embedded = false }: { onClose: () => voi
   }, []);
 
   useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setLoadError(null);
     fetch("/api/models-config")
-      .then((r) => r.json())
-      .then((d: ModelsJson) => {
-        const normalized = d.providers ? d : { ...d, providers: {} };
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw new Error(data?.error ?? `HTTP ${response.status}`);
+        if (!data || typeof data !== "object" || Array.isArray(data) || data.error
+          || (data.providers !== undefined && (!data.providers || typeof data.providers !== "object" || Array.isArray(data.providers)))) {
+          throw new Error(data?.error ?? "Invalid models configuration response");
+        }
+        return data as ModelsJson;
+      })
+      .then((data) => {
+        if (!active) return;
+        const normalized = data.providers ? data : { ...data, providers: {} };
         setConfig(normalized);
         const keys = Object.keys(normalized.providers ?? {});
         setSelection((current) => current && customSelectionExists(normalized, current)
           ? current
-          : keys[0]
-            ? { type: "provider", name: keys[0] }
-            : null);
+          : keys[0] ? { type: "provider", name: keys[0] } : null);
       })
-      .catch(() => setConfig({ providers: {} }))
-      .finally(() => setLoading(false));
+      .catch((error) => { if (active) setLoadError(String(error)); })
+      .finally(() => { if (active) setLoading(false); });
     refreshAuthProviders();
-  }, [refreshAuthProviders]);
+    return () => { active = false; };
+  }, [refreshAuthProviders, loadAttempt]);
 
   useEffect(() => {
     if (selection) setLastSettingsSelection("models", JSON.stringify(selection));
@@ -1939,6 +1951,7 @@ export function ModelsConfig({ onClose, embedded = false }: { onClose: () => voi
   }, []);
 
   const handleSave = useCallback(async () => {
+    if (loading || loadError) return;
     setSaving(true);
     setSaveError(null);
     setSavedOk(false);
@@ -1956,7 +1969,7 @@ export function ModelsConfig({ onClose, embedded = false }: { onClose: () => voi
     } finally {
       setSaving(false);
     }
-  }, [config]);
+  }, [config, loading, loadError]);
 
   const providers = Object.entries(config.providers ?? {});
   const activeOAuth = oauthProviders.filter((p) => p.loggedIn);
@@ -2007,7 +2020,7 @@ export function ModelsConfig({ onClose, embedded = false }: { onClose: () => voi
 
   return (
     <>
-    <ConfigPanelShell embedded={embedded} title={t("common.models")} subtitle="~/.pi/agent/models.json" closeLabel={t("i18n.close")} onClose={onClose}>
+    <ConfigPanelShell title={t("common.models")}>
 
         {/* Body */}
         <ConfigSplitView>
@@ -2108,13 +2121,18 @@ export function ModelsConfig({ onClose, embedded = false }: { onClose: () => voi
             </ConfigSidebarList>
 
             {/* Add provider */}
-            <ConfigListAction onClick={() => setPickerOpen(true)}>{t("i18n.addProvider")}</ConfigListAction>
+            <ConfigListAction disabled={loading || Boolean(loadError)} onClick={() => setPickerOpen(true)}>{t("i18n.addProvider")}</ConfigListAction>
           </ConfigSidebar>
 
           {/* Right: detail */}
           <ConfigDetail>
             <ConfigDetailStack className="is-fill">
-              {loading ? null : detailContent ?? (
+              {loadError ? (
+                <ConfigEmptyState>
+                  <span role="alert">{loadError}</span>
+                  <ConfigButton onClick={() => setLoadAttempt((attempt) => attempt + 1)}>{t("i18n.refresh")}</ConfigButton>
+                </ConfigEmptyState>
+              ) : loading ? null : detailContent ?? (
                 <ConfigEmptyState>{t("i18n.selectProviderModel")}</ConfigEmptyState>
               )}
             </ConfigDetailStack>
@@ -2123,11 +2141,10 @@ export function ModelsConfig({ onClose, embedded = false }: { onClose: () => voi
 
         {/* Footer */}
         <ConfigFooter status={saveError && <span style={{ color: "#f87171" }}>{saveError}</span>}>
-          {!embedded && <ConfigButton onClick={onClose}>{t("i18n.cancel")}</ConfigButton>}
           <ConfigButton
             variant="primary"
             onClick={handleSave}
-            disabled={saving || savedOk}
+            disabled={loading || Boolean(loadError) || saving || savedOk}
             className={savedOk ? "is-success" : undefined}
           >
             {savedOk && (

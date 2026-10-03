@@ -553,12 +553,8 @@ function AddSkillPanel({
 
 export function SkillsConfig({
   cwd,
-  onClose,
-  embedded = false,
 }: {
   cwd: string;
-  onClose: () => void;
-  embedded?: boolean;
 }) {
   const { t } = useI18n();
   const [skills, setSkills] = useState<Skill[]>([]);
@@ -603,7 +599,7 @@ export function SkillsConfig({
     setUpdateStatuses({});
     setUpdateError(null);
     void loadSkills();
-  }, [cwd]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cwd, loadSkills]);
 
   useEffect(() => {
     if (selected) setLastSettingsSelection("skills", selected, cwd);
@@ -736,7 +732,7 @@ export function SkillsConfig({
   const selectedSkill = skills.find((s) => s.filePath === selected) ?? null;
 
   return (
-    <ConfigPanelShell embedded={embedded} title={t("common.skills")} subtitle={shortenPath(cwd)} closeLabel={t("i18n.close")} onClose={onClose}>
+    <ConfigPanelShell title={t("common.skills")}>
 
         {!projectResourcesLoaded && (
           <div role="status" className="config-trust-notice">
@@ -930,7 +926,6 @@ export function SkillsConfig({
               </span>
             )}
         >
-          {!embedded && <ConfigButton onClick={onClose}>{t("i18n.close")}</ConfigButton>}
           {skills.some((skill) => Boolean(skill.install)) && (
             <ConfigButton variant="secondary" onClick={() => void checkForUpdates()} disabled={checkingAll || updatingSkill !== null}>
               {checkingAll ? t("i18n.checking") : t("i18n.checkUpdates")}

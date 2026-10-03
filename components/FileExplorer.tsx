@@ -250,7 +250,6 @@ function TreeNode({
   const [children, setChildren] = useState<FileNode[]>(node.children ?? []);
   const [loaded, setLoaded] = useState(node.loaded ?? false);
   const [loading, setLoading] = useState(false);
-  const [hovered, setHovered] = useState(false);
 
   const loadChildren = useCallback(async (force = false) => {
     if (loaded && !force) return;
@@ -288,8 +287,7 @@ function TreeNode({
     <div>
       <div
         onClick={handleClick}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        className="file-tree-row"
         style={{
           position: "relative",
           display: "flex",
@@ -299,7 +297,6 @@ function TreeNode({
           paddingRight: 8,
           height: 24,
           cursor: "pointer",
-          background: hovered ? "var(--bg-hover)" : "transparent",
           borderRadius: 4,
           userSelect: "none",
         }}
@@ -339,11 +336,12 @@ function TreeNode({
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#3b82f6" }} />
           </span>
         )}
-        {!hovered && !node.isDir && gitStatus && (
-          <GitStatusBadge status={gitStatus} t={t} />
+        {!node.isDir && gitStatus && (
+          <span className="file-tree-status"><GitStatusBadge status={gitStatus} t={t} /></span>
         )}
-        {!hovered && containsGitChanges && (
+        {containsGitChanges && (
           <span
+            className="file-tree-status"
             title={t("files.containsChangedFiles")}
             aria-label={t("files.containsChangedFiles")}
             style={{
@@ -363,12 +361,13 @@ function TreeNode({
             <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4" />
           </svg>
         )}
-        {onAtMention && hovered && (
+        {onAtMention && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onAtMention(getRelativeFilePath(node.fullPath, cwd), node.isDir);
             }}
+            className="file-tree-action"
             title={t("files.insertPath")}
             style={{
               position: "absolute",
@@ -395,8 +394,9 @@ function TreeNode({
             {t("files.mention")}
           </button>
         )}
-        {hovered && !node.isDir && (
+        {!node.isDir && (
           <a
+            className="file-tree-action"
             href={`/api/files/${encodeFilePathForApi(node.fullPath)}?type=download`}
             download
             onClick={(e) => e.stopPropagation()}
@@ -476,14 +476,12 @@ function ChangeRow({
   onOpenFile: OpenFileHandler;
   t: Translate;
 }) {
-  const [hovered, setHovered] = useState(false);
   const name = getFileName(status.filePath);
   const rel = getRelativeFilePath(status.filePath, cwd);
   return (
     <div
       onClick={() => onOpenFile(status.filePath, name, { modeHint: "diff" })}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      className="file-change-row"
       title={status.filePath}
       style={{
         display: "flex",
@@ -493,7 +491,6 @@ function ChangeRow({
         paddingRight: 8,
         height: 24,
         cursor: "pointer",
-        background: hovered ? "var(--bg-hover)" : "transparent",
         borderRadius: 4,
         userSelect: "none",
       }}

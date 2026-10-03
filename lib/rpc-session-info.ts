@@ -1,10 +1,11 @@
 import { existsSync } from "fs";
 import { readSubagentRun } from "./subagents";
 import type { AgentSessionWrapper } from "./agent-session-wrapper";
-import type { SessionEntry, SessionInfo, SessionMessageEntry } from "./types";
+import type { SessionInfo } from "./types";
+import type { SessionMessageEntry } from "@earendil-works/pi-coding-agent";
 
 function runtimeMessageText(entry: SessionMessageEntry): string {
-  if (entry.message.role === "bashExecution") return "";
+  if (!("content" in entry.message)) return "";
   const content = entry.message.content;
   if (typeof content === "string") return content;
   return content
@@ -32,14 +33,12 @@ export function describeRpcSessions(registry: Iterable<AgentSessionWrapper>): Se
 
     const manager = session.inner.sessionManager;
     const header = manager.getHeader();
-    const entries = manager.getEntries() as unknown as Array<
-      { type: string; timestamp: string } | SessionMessageEntry
-    >;
+    const entries = manager.getEntries();
     const messages = entries.filter((entry): entry is SessionMessageEntry => entry.type === "message");
     const firstUserMessage = messages.find((entry) => entry.message.role === "user");
     const sessionFile = manager.getSessionFile() ?? session.sessionFile;
     const persisted = Boolean(sessionFile && existsSync(sessionFile));
-    const subagent = readSubagentRun(entries as unknown as SessionEntry[], header?.id ?? session.sessionId, sessionFile ?? "");
+    const subagent = readSubagentRun(entries, header?.id ?? session.sessionId, sessionFile ?? "");
 
     // An ensure_session call creates an idle, empty runtime while the composer
     // loads commands. Do not leak it into history before a prompt is accepted.

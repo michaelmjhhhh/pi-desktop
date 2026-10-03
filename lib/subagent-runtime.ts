@@ -1,4 +1,5 @@
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import { SubagentError } from "./subagent-errors";
+import { isThinkingLevel } from "./thinking-levels";
 import {
   createAgentSessionFromServices,
   createAgentSessionServices,
@@ -27,7 +28,6 @@ import {
   type SubagentResultMetadata,
   type SubagentRunInfo,
 } from "./subagents";
-import type { SessionEntry } from "./types";
 import { buildSubagentPromptPlan } from "./subagent-prompt";
 import { appendSubagentInputFiles, loadSubagentInputFiles } from "./subagent-input";
 import { projectTrustReloadOptions } from "./project-trust";
@@ -75,7 +75,6 @@ declare global {
 
 const MAX_CONCURRENT_SUBAGENTS = 4;
 const SUBAGENT_CONTEXT_LIMIT = 50_000;
-const THINKING_LEVELS = new Set<ThinkingLevel>(["off", "minimal", "low", "medium", "high", "xhigh", "max"]);
 
 function getSubagentRuns(): Map<string, StoredSubagentExecution> {
   if (!globalThis.__piSubagentRuns) globalThis.__piSubagentRuns = new Map();
@@ -153,12 +152,12 @@ export function createSubagentController(
       }
       const turnLimit = maxTurns && maxTurns > 0 ? Math.floor(maxTurns) : undefined;
       const thinking = request.thinking ?? profile.thinking ?? parent.inner.agent.state?.thinkingLevel;
-      if (thinking && !THINKING_LEVELS.has(thinking as ThinkingLevel)) {
+      if (thinking && !isThinkingLevel(thinking)) {
         throw new Error(`Invalid subagent thinking level: ${thinking}`);
       }
 
       const agentDir = getAgentDir();
-      const parentModelRuntime = (parent.inner as unknown as { modelRuntime: ModelRuntime }).modelRuntime;
+      const parentModelRuntime = parent.inner.modelRuntime;
       const settingsManager = SettingsManager.create(parent.cwd, agentDir);
       const inheritedParentContext = inheritContext
         ? `The following is the active conversation context from the parent session. Use it only as background for the delegated task:\n${parentContextText(parent)}`
@@ -235,7 +234,7 @@ export function createSubagentController(
         services,
         sessionManager,
         model: requestedModel ?? parentModel,
-        ...(thinking ? { thinkingLevel: thinking as ThinkingLevel } : {}),
+        ...(isThinkingLevel(thinking) ? { thinkingLevel: thinking } : {}),
         tools: activeTools,
         excludeTools: [...SUBAGENT_CONTROL_TOOL_NAMES],
       });
@@ -357,7 +356,7 @@ export function createSubagentController(
     const wrapper = dependencies.getSession(sessionId);
     if (wrapper?.isAlive()) {
       const run = readSubagentRun(
-        wrapper.inner.sessionManager.getEntries() as unknown as SessionEntry[],
+        wrapper.inner.sessionManager.getEntries(),
         sessionId,
         wrapper.sessionFile,
       );
@@ -367,13 +366,13 @@ export function createSubagentController(
     const sessionPath = await dependencies.resolveSessionPath(sessionId);
     if (!sessionPath) return null;
     const manager = SessionManager.open(sessionPath);
-    return readSubagentRun(manager.getEntries() as unknown as SessionEntry[], sessionId, sessionPath);
+    return readSubagentRun(manager.getEntries(), sessionId, sessionPath);
   }
 
   async function steer(sessionId: string, message: string): Promise<void> {
     const wrapper = dependencies.getSession(sessionId);
-    if (!wrapper?.isAlive() || !wrapper.isRunning()) throw new Error("Subagent is not running");
-    if (!message.trim()) throw new Error("Steering message is required");
+    if (!wrapper?.isAlive() || !wrapper.isRunning()) throw new SubagentError("not_running", "Subagent is not running");
+    if (!message.trim()) throw new SubagentError("invalid_request", "Steering message is required");
     await wrapper.inner.steer(message.trim());
   }
 
@@ -396,7 +395,7 @@ export function createSubagentController(
 
   async function abort(sessionId: string): Promise<void> {
     const wrapper = dependencies.getSession(sessionId);
-    if (!wrapper?.isAlive() || !wrapper.isRunning()) throw new Error("Subagent is not running");
+    if (!wrapper?.isAlive() || !wrapper.isRunning()) throw new SubagentError("not_running", "Subagent is not running");
     const stored = getSubagentRuns().get(sessionId);
     if (stored) stored.abortRequested = true;
     await wrapper.inner.abort();

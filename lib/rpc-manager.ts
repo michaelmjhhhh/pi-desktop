@@ -1,5 +1,5 @@
 import { describeRpcSessions } from "./rpc-session-info";
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import { isThinkingLevel, type ThinkingLevel } from "./thinking-levels";
 import { createAgentSessionFromServices, createAgentSessionServices, getAgentDir, initTheme, SessionManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 import { randomUUID } from "crypto";
@@ -13,7 +13,7 @@ import { cacheSessionPath, invalidateSessionListCache, resolveSessionPath } from
 import { projectTrustReloadOptions } from "./project-trust";
 import { persistExplicitStartupPreferences } from "./startup-preferences";
 
-import type { SessionEntry, SessionInfo } from "./types";
+import type { SessionInfo } from "./types";
 
 import { createSubagentExtension, preferPiWebSubagentExtension } from "./subagent-extension";
 import { listSubagentProfiles, readSubagentSessionResources, SUBAGENT_CONTROL_TOOL_NAMES } from "./subagents";
@@ -23,7 +23,7 @@ import { isBuiltInSubagentsEnabled } from "./subagent-settings";
 import { CHAT_ONLY_RESOURCE_LOADER_OPTIONS, contextFilesSystemPrompt } from "./chat-only";
 import { appendSessionToolSelection, readSessionToolSelection, validateSessionToolSelection } from "./session-tool-selection";
 
-import { AgentSessionWrapper, THINKING_LEVEL_NAMES, withExtensionTools } from "./agent-session-wrapper";
+import { AgentSessionWrapper, withExtensionTools } from "./agent-session-wrapper";
 export { AgentSessionWrapper, resolveSessionIdleTimeoutMs } from "./agent-session-wrapper";
 export type { AgentEvent } from "./agent-session-wrapper";
 
@@ -154,7 +154,7 @@ export async function setRpcSessionTools(
   if (!existing?.isAlive()) {
     if (!sessionFile) throw new Error("Session not found");
     const manager = SessionManager.open(sessionFile, undefined);
-    if (readSubagentSessionResources(manager.getEntries() as unknown as SessionEntry[])) {
+    if (readSubagentSessionResources(manager.getEntries())) {
       throw new Error("Subagent tool selection is fixed by its profile");
     }
     appendSessionToolSelection(manager, toolNames);
@@ -164,7 +164,7 @@ export async function setRpcSessionTools(
   }
 
   if (existing.isRunning()) throw new Error("Cannot change tools while the session is running");
-  if (readSubagentSessionResources(existing.inner.sessionManager.getEntries() as unknown as SessionEntry[])) {
+  if (readSubagentSessionResources(existing.inner.sessionManager.getEntries())) {
     throw new Error("Subagent tool selection is fixed by its profile");
   }
 
@@ -197,8 +197,8 @@ export async function setRpcSessionTools(
     toolNames,
     ...(model ? { initialModel: { provider: model.provider, modelId: model.id } } : {}),
     allowInitialModelFallback: true,
-    ...(currentThinkingLevel && THINKING_LEVEL_NAMES.has(currentThinkingLevel as ThinkingLevel)
-      ? { thinkingLevel: currentThinkingLevel as ThinkingLevel }
+    ...(isThinkingLevel(currentThinkingLevel)
+      ? { thinkingLevel: currentThinkingLevel }
       : {}),
   });
   return { session: started.session, sessionId: started.realSessionId, recreated: true };
@@ -279,12 +279,12 @@ export async function startRpcSession(
   const sessionCwd = sessionManager.getCwd();
   const subagentResources = sessionFile
     ? readSubagentSessionResources(
-        sessionManager.getEntries() as unknown as SessionEntry[],
+        sessionManager.getEntries(),
       )
     : null;
   const persistedToolNames = subagentResources
     ? undefined
-    : readSessionToolSelection(sessionManager.getEntries() as unknown as SessionEntry[]);
+    : readSessionToolSelection(sessionManager.getEntries());
   const selectedToolNames = subagentResources?.tools ?? persistedToolNames ?? requestedToolNames;
   if (!subagentResources && persistedToolNames === undefined && requestedToolNames !== undefined) {
     appendSessionToolSelection(sessionManager, requestedToolNames);

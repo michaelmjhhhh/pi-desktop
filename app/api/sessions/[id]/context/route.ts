@@ -30,7 +30,7 @@ export async function GET(
     const sm = liveRpc?.inner.sessionManager ?? SessionManager.open(filePath!);
     // `before` is the oldest entry already on the client; fetch its ancestors
     // only (excludeLeaf) so prepending the page does not duplicate `before`.
-    const context = buildSessionContext(sm.getEntries() as never, before ?? leafId, {
+    const context = buildSessionContext(sm.getEntries(), before ?? leafId, {
       deferThinking,
       deferToolResultImages,
       tail,
@@ -38,7 +38,7 @@ export async function GET(
       sessionId: id,
     });
 
-    return NextResponse.json({ context, ...(!before ? { navigation: buildSessionNavigation(sm.getEntries() as never, leafId) } : {}), tail, before: before ?? null });
+    return NextResponse.json({ context, ...(!before ? { navigation: buildSessionNavigation(sm.getEntries(), leafId) } : {}), tail, before: before ?? null });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

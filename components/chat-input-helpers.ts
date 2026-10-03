@@ -1,3 +1,4 @@
+import { THINKING_LEVELS as CONCRETE_THINKING_LEVELS } from "@/lib/thinking-levels";
 import type { SlashCommandInfo } from "@/hooks/useAgentSession";
 import type { TextContent, UserMessage } from "@/lib/types";
 import type { ChatDraftImage } from "@/lib/draft-store";
@@ -62,7 +63,7 @@ export function getVisibleTopBoundary(element: HTMLElement): number {
   return visibleTop;
 }
 
-export const THINKING_LEVELS = ["auto", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+export const THINKING_LEVELS = ["auto", ...CONCRETE_THINKING_LEVELS] as const;
 export const THINKING_LEVEL_DESC_KEYS: Record<typeof THINKING_LEVELS[number], string> = {
   auto: "chat.thinkingUseDefault", off: "chat.thinkingOff", minimal: "chat.thinkingMinimal", low: "chat.thinkingLow",
   medium: "chat.thinkingMedium", high: "chat.thinkingHigh", xhigh: "chat.thinkingXhigh", max: "chat.thinkingMax",
@@ -267,10 +268,12 @@ export function getUserMessageDraftImages(message: UserMessage): ChatDraftImage[
   return message.content.flatMap((block) => {
     if (block.type !== "image") return [];
 
-    // Support both the current nested image format and older flat pi-ai entries.
-    const flat = block as unknown as { data?: unknown; mimeType?: unknown };
-    const data = block.source?.type === "base64" ? block.source.data : flat.data;
-    const mimeType = block.source?.type === "base64" ? block.source.media_type : flat.mimeType;
+    const data = "source" in block
+      ? block.source.type === "base64" ? block.source.data : undefined
+      : block.data;
+    const mimeType = "source" in block
+      ? block.source.type === "base64" ? block.source.media_type : undefined
+      : block.mimeType;
     if (typeof data !== "string" || typeof mimeType !== "string") return [];
 
     const image = { data, mimeType };

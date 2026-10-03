@@ -1,3 +1,5 @@
+import type { AgentCommand, AgentClientCommandResult } from "./agent-protocol";
+
 // Client-side helper for POST /api/agent/[id].
 //
 // Every /api/agent/[id] route returns one of:
@@ -25,29 +27,33 @@ export function isPromptRejectedError(error: unknown): error is AgentCommandErro
     && error.accepted === false;
 }
 
-export async function sendAgentCommand<T = unknown>(
+export async function sendAgentCommand<C extends AgentCommand>(
   sessionId: string,
-  command: Record<string, unknown>,
-): Promise<T> {
+  command: C,
+): Promise<AgentClientCommandResult<C["type"]>> {
   const res = await fetch(`/api/agent/${encodeURIComponent(sessionId)}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(command),
   });
-  const body = (await res.json().catch(() => ({}))) as {
+  const parsed: unknown = await res.json().catch(() => null);
+  const body = (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {}) as {
     success?: boolean;
-    data?: T;
+    data?: AgentClientCommandResult<C["type"]>;
     error?: string;
     code?: string;
     accepted?: boolean;
   };
-  if (!res.ok || body.error) {
+  if (!res.ok || typeof body.error === "string") {
     throw new AgentCommandError(
-      body.error ?? `HTTP ${res.status}`,
+      typeof body.error === "string" ? body.error : `HTTP ${res.status}`,
       res.status,
-      body.code,
-      body.accepted,
+      typeof body.code === "string" ? body.code : undefined,
+      typeof body.accepted === "boolean" ? body.accepted : undefined,
     );
   }
-  return body.data as T;
+  if (body.success !== true || !("data" in body)) {
+    throw new AgentCommandError("Invalid agent command response", res.status);
+  }
+  return body.data as AgentClientCommandResult<C["type"]>;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import type { ThinkingLevelOption } from "@/lib/thinking-levels";
+
 import type { ChatInputHandle, AttachedImage } from "@/lib/chat-input-types";
 
 import { useState, useCallback, useRef, useEffect, useLayoutEffect, useMemo, useReducer } from "react";
@@ -24,6 +26,8 @@ import { getPresetFromToolNames, getToolNamesForPreset, type ToolEntry, type Too
 import type { SessionStatsInfo } from "@/lib/pi-types";
 import { mergeSessionStats, type SessionFileStats } from "@/lib/session-stats";
 import { userMessageKey } from "@/lib/prompt-recovery";
+import { parseClientAgentEvent } from "@/lib/client-agent-event";
+import type { AgentEventLike as AgentEvent } from "@/lib/agent-event-wire";
 import { AgentEventConnection } from "@/lib/agent-event-connection";
 import { getToolExecutionProgress } from "@/lib/tool-execution-progress";
 import {
@@ -34,7 +38,6 @@ import {
 import {
   INITIAL_STREAMING_STATE,
   streamReducer,
-  type ClientAssistantMessageEvent,
 } from "@/lib/streaming-message";
 
 export interface SessionData {
@@ -57,18 +60,9 @@ export interface SessionData {
   stats?: SessionFileStats;
 }
 
-interface AgentEvent {
-  type: string;
-  [key: string]: unknown;
-}
-
 interface CompactCommandResult {
   tokensBefore?: number;
   estimatedTokensAfter?: number;
-}
-
-interface LastAssistantTextResponse {
-  text?: string;
 }
 
 
@@ -130,11 +124,10 @@ export interface UseAgentSessionOptions {
   /** Registers an action that lazily starts the session and loads its prompt and tools. */
   onSystemInfoLoaderChange?: (loader: (() => Promise<void>) | null) => void;
   onSessionStatsPanelOpen?: () => void;
-  setToolPreset?: (preset: ToolPreset) => void;
   deferInitialScroll?: boolean;
 }
 
-export type ThinkingLevelOption = "auto" | "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+export type { ThinkingLevelOption } from "@/lib/thinking-levels";
 
 const PROMPT_SETTLE_INITIAL_DELAY_MS = 800;
 const PROMPT_SETTLE_POLL_MS = 600;
@@ -170,10 +163,6 @@ type ModelsResponse = {
   thinkingLevelPins?: Record<string, string>;
   modelError?: string;
   modelScopeWarnings?: string[];
-};
-
-type SlashCommandsResponse = {
-  commands?: SlashCommandInfo[];
 };
 
 export function useAgentSession(opts: UseAgentSessionOptions) {
@@ -284,13 +273,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     });
   }
 
-  const setToolPresetState = opts.setToolPreset ?? setToolPreset;
   const existingSessionId = session?.id;
 
   useLayoutEffect(() => {
     if (!existingSessionId && (!isNew || sessionIdRef.current)) return;
-    setToolPresetState(getPreferredToolPreset());
-  }, [existingSessionId, isNew, setToolPresetState]);
+    setToolPreset(getPreferredToolPreset());
+  }, [existingSessionId, isNew, setToolPreset]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const container = scrollContainerRef.current;
@@ -388,7 +376,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       setEntryIds(d.context.entryIds ?? []);
       setHistoryCursor(d.context.oldestEntryId);
       setHasEarlierMessages(d.context.hasMore);
-      setToolPresetState(d.toolNames !== undefined ? getPresetFromToolNames(d.toolNames) : "default");
+      setToolPreset(d.toolNames !== undefined ? getPresetFromToolNames(d.toolNames) : "default");
       setCurrentModelOverride((current) => modelSwitchPendingRef.current ? current : null);
       setError(null);
       if (d.context.thinkingLevel && d.context.thinkingLevel !== "off") {
@@ -427,7 +415,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     } finally {
       if (showLoading && !messagesLoaded) setLoading(false);
     }
-  }, [setToolPresetState]);
+  }, [setToolPreset]);
 
   const loadContext = useCallback(async (sid: string, leafId: string | null, before?: string | null, options?: { tail?: number; signal?: AbortSignal }) => {
     try {
@@ -471,17 +459,17 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
   const loadTools = useCallback(async (sid: string) => {
     try {
-      const tools = await sendAgentCommand<ToolEntry[]>(sid, { type: "get_tools" });
+      const tools = await sendAgentCommand(sid, { type: "get_tools" });
       if (!tools || !sessionHookMountedRef.current || sessionIdRef.current !== sid) return null;
       const { getPresetFromTools } = await import("@/lib/tool-presets");
-      setToolPresetState(getPresetFromTools(tools));
+      setToolPreset(getPresetFromTools(tools));
       onSystemToolsChange?.(tools);
       return tools;
     } catch (e) {
       console.error("Failed to load tools:", e);
       return null;
     }
-  }, [onSystemToolsChange, setToolPresetState]);
+  }, [onSystemToolsChange, setToolPreset]);
 
   const promoteNewSession = useCallback((messageCount = 0, firstMessage = "(no messages)") => {
     const sid = sessionIdRef.current;
@@ -570,7 +558,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     if (!sid) return;
 
     const [state] = await Promise.all([
-      sendAgentCommand<AgentStateResponse>(sid, { type: "get_state" }),
+      sendAgentCommand(sid, { type: "get_state" }),
       loadTools(sid),
     ]);
     if (!sessionHookMountedRef.current || sessionIdRef.current !== sid) return;
@@ -585,7 +573,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     }
     setSlashCommandsLoading(true);
     try {
-      const data = await sendAgentCommand<SlashCommandsResponse>(sid, { type: "get_commands" });
+      const data = await sendAgentCommand(sid, { type: "get_commands" });
       const commands = data?.commands ?? [];
       setSlashCommands(commands);
       return commands;
@@ -942,7 +930,9 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     agentRunningRef.current = agentRunning;
   }, [agentRunning]);
 
-  const handleAgentEvent = useCallback((event: AgentEvent) => {
+  const handleAgentEvent = useCallback((rawEvent: AgentEvent) => {
+    const event = parseClientAgentEvent(rawEvent);
+    if (!event) return;
     switch (event.type) {
       case "connected": {
         dispatch({ type: "end" });
@@ -1023,12 +1013,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         }
         break;
       case "prompt_error":
-        addNotice({ type: "error", message: (event.errorMessage as string | undefined) ?? "Command failed" });
+        addNotice({ type: "error", message: event.errorMessage ?? "Command failed" });
         break;
       case "extension_error":
         addNotice({
           type: "error",
-          message: (event.error as string | undefined) ?? "Extension command failed",
+          message: event.error ?? "Extension command failed",
         });
         break;
       case "message_start":
@@ -1038,7 +1028,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         // reconcile) — they would resurrect a ghost streaming bubble.
         if (!agentRunningRef.current) break;
         if (event.type === "message_start") {
-          const msg = event.message as AgentMessage | undefined;
+          const msg = event.message;
           if (msg?.role === "user") break;
           if (msg?.role === "assistant") {
             dispatch({ type: "snapshot", message: msg });
@@ -1047,7 +1037,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
             setAgentPhase(null);
           }
         } else {
-          const delta = event.assistantMessageEvent as ClientAssistantMessageEvent | undefined;
+          const delta = event.assistantMessageEvent;
           if (delta) {
             dispatch({ type: "delta", event: delta });
             if (delta.type !== "toolcall_start" && delta.type !== "toolcall_delta") {
@@ -1072,7 +1062,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         // loadSession already loaded this message from the session file —
         // appending it again would duplicate it.
         if (!agentRunningRef.current) break;
-        const completed = event.message as AgentMessage | undefined;
+        const completed = event.message;
         if (completed && completed.role === "user") {
           // Delivered steering/follow-up messages surface here as user
           // messages. The run's initial prompt also emits one, but handleSend
@@ -1099,8 +1089,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         break;
       }
       case "tool_execution_start": {
-        const id = event.toolCallId as string;
-        const name = event.toolName as string;
+        const id = event.toolCallId;
+        const name = event.toolName;
         setAgentPhase((prev) => {
           const tools = prev?.kind === "running_tools" ? [...prev.tools] : [];
           if (!tools.some((t) => t.id === id)) tools.push({ id, name });
@@ -1109,8 +1099,8 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         break;
       }
       case "tool_execution_update": {
-        const id = event.toolCallId as string;
-        const name = event.toolName as string;
+        const id = event.toolCallId;
+        const name = event.toolName;
         const progress = getToolExecutionProgress(event.partialResult);
         setAgentPhase((prev) => {
           const tools = prev?.kind === "running_tools" ? [...prev.tools] : [];
@@ -1128,7 +1118,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
         break;
       }
       case "tool_execution_end": {
-        const id = event.toolCallId as string;
+        const id = event.toolCallId;
         setAgentPhase((prev) => {
           if (prev?.kind !== "running_tools") return prev;
           const tools = prev.tools.filter((t) => t.id !== id);
@@ -1139,12 +1129,12 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       }
       case "queue_update":
         setQueuedMessages({
-          steering: [...((event.steering as string[] | undefined) ?? [])],
-          followUp: [...((event.followUp as string[] | undefined) ?? [])],
+          steering: [...event.steering],
+          followUp: [...event.followUp],
         });
         break;
       case "auto_retry_start":
-        setRetryInfo({ attempt: event.attempt as number, maxAttempts: event.maxAttempts as number, errorMessage: event.errorMessage as string | undefined });
+        setRetryInfo({ attempt: event.attempt, maxAttempts: event.maxAttempts, errorMessage: event.errorMessage });
         break;
       case "auto_retry_end":
         setRetryInfo(null);
@@ -1159,15 +1149,15 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       case "compaction_end":
         setIsCompacting(false);
         if (event.errorMessage) {
-          setCompactError(event.errorMessage as string);
+          setCompactError(event.errorMessage);
           setCompactResult(null);
         } else if (!event.aborted) {
-          setCompactResult(readCompactResult(event.result, (event.reason as string | undefined) ?? "auto"));
+          setCompactResult(readCompactResult(event.result, event.reason ?? "auto"));
           if (sessionIdRef.current) loadSession(sessionIdRef.current);
         }
         break;
       case "extension_ui_request":
-        handleExtensionUiRequest(event as ExtensionUiRequest);
+        handleExtensionUiRequest(event);
         break;
       case "extension_ui_closed":
         setExtensionDialog((current) => current?.id === event.id ? null : current);
@@ -1347,7 +1337,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     if (!sid) return;
     setForkingEntryId(entryId);
     try {
-      const result = await sendAgentCommand<{ cancelled?: boolean; newSessionId?: string }>(sid, {
+      const result = await sendAgentCommand(sid, {
         type: "fork",
         entryId,
       });
@@ -1434,7 +1424,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     setCompactError(null);
     setCompactResult(null);
     try {
-      const result = await sendAgentCommand<CompactCommandResult>(sid, { type: "compact" });
+      const result = await sendAgentCommand(sid, { type: "compact" });
       setCompactResult(readCompactResult(result, "manual"));
       await loadSession(sid, true);
     } catch (e) {
@@ -1519,7 +1509,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           setIsCompacting(true);
           setCompactError(null);
           setCompactResult(null);
-          const result = await sendAgentCommand<CompactCommandResult>(sid, {
+          const result = await sendAgentCommand(sid, {
             type: "compact",
             ...(args ? { customInstructions: args } : {}),
           });
@@ -1550,7 +1540,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
         case "session": {
           if (!sid) return complete({ handled: true, error: "No active session" });
-          const stats = await sendAgentCommand<SessionStatsInfo>(sid, { type: "get_session_stats" });
+          const stats = await sendAgentCommand(sid, { type: "get_session_stats" });
           if (stats) {
             setSessionStatsOverride(stats);
           }
@@ -1560,7 +1550,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
 
         case "copy": {
           if (!sid) return complete({ handled: true, error: "No active session" });
-          const data = await sendAgentCommand<LastAssistantTextResponse>(sid, { type: "get_last_assistant_text" });
+          const data = await sendAgentCommand(sid, { type: "get_last_assistant_text" });
           const textToCopy = data?.text ?? "";
           if (!textToCopy) return complete({ handled: true, error: "No assistant message to copy" });
           await navigator.clipboard.writeText(textToCopy);
@@ -1572,7 +1562,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
           if (agentRunningRef.current || bashRunningRef.current) {
             return complete({ handled: true, error: "Cannot clone while the session is running" });
           }
-          const result = await sendAgentCommand<{ cancelled?: boolean; newSessionId?: string }>(sid, {
+          const result = await sendAgentCommand(sid, {
             type: "clone",
             leafId: activeLeafId,
           });
@@ -1660,7 +1650,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     const sid = sessionIdRef.current;
     if (!sid) return;
     try {
-      const result = await sendAgentCommand<{ steering?: string[]; followUp?: string[] }>(sid, { type: "clear_queue" });
+      const result = await sendAgentCommand(sid, { type: "clear_queue" });
       // clearQueue also emits an empty queue_update, but that only reaches us
       // while SSE is connected — clear locally so idle recalls update the UI.
       setQueuedMessages({ steering: [], followUp: [] });
@@ -1692,11 +1682,11 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
   const handleToolPresetChange = useCallback(async (preset: ToolPreset) => {
     const toolNames = getToolNamesForPreset(preset);
     setPreferredToolPreset(preset);
-    setToolPresetState(preset);
+    setToolPreset(preset);
     const sid = sessionIdRef.current ?? await ensuringNewSessionRef.current;
     if (!sid) return;
     try {
-      const result = await sendAgentCommand<{ sessionId?: string; recreated?: boolean }>(sid, { type: "set_tools", toolNames });
+      const result = await sendAgentCommand(sid, { type: "set_tools", toolNames });
       const activeSessionId = result?.sessionId ?? sid;
       if (activeSessionId !== sid) {
         cancelEventStreamGrace();
@@ -1707,7 +1697,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
       setExtensionStatuses([]);
       setExtensionWidgets([]);
       const [state] = await Promise.all([
-        sendAgentCommand<AgentStateResponse>(activeSessionId, { type: "get_state" }),
+        sendAgentCommand(activeSessionId, { type: "get_state" }),
         loadTools(activeSessionId),
       ]);
       if (sessionHookMountedRef.current && sessionIdRef.current === activeSessionId) {
@@ -1716,7 +1706,7 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     } catch (e) {
       console.error("Failed to set tools:", e);
     }
-  }, [cancelEventStreamGrace, closeEvents, loadTools, setToolPresetState]);
+  }, [cancelEventStreamGrace, closeEvents, loadTools, setToolPreset]);
 
   const scrollToMessage = useCallback((element: HTMLElement, viewportOffset = 16) => {
     const container = scrollContainerRef.current;
@@ -1928,18 +1918,15 @@ export function useAgentSession(opts: UseAgentSessionOptions) {
     promptAnchorActive,
     // Refs
     sessionIdRef, scrollContainerRef,
-    lastUserMsgRef, pendingScrollToUserRef, initialScrollDoneRef,
+    lastUserMsgRef,
     // Actions
     handleSend, handleAbort, handleFork, handleNavigate, handleModelChange,
     handleCompact, handleSteer, handleFollowUp, handlePromptWithStreamingBehavior, handleAbortCompaction,
     handleRecallQueue,
     handleBuiltinSlashCommand,
     setNoticePaused,
-    handleToolPresetChange, handleThinkingLevelChange, loadTools, loadSlashCommands, setActiveLeafId, setData, setMessages, loadContext,
+    handleToolPresetChange, handleThinkingLevelChange, loadSlashCommands, loadContext,
     scrollToBottom, scrollUserMsgToTop, scrollToMessage,
-    dispatch, setAgentRunning, setForkingEntryId,
     bashRunning, pendingBash,
-    // Subscriptions
-    handleAgentEventRef,
   };
 }

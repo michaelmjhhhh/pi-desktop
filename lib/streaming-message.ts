@@ -1,7 +1,6 @@
 import type { ClientAssistantMessageEvent } from "./agent-event-wire";
-import { normalizeStreamingToolCalls } from "./normalize";
+import { normalizeStreamingToolCalls, type RawAgentMessage } from "./normalize";
 import type {
-  AgentMessage,
   AssistantContentBlock,
   AssistantMessage,
 } from "./types";
@@ -15,7 +14,7 @@ export interface StreamingState {
 
 export type StreamAction =
   | { type: "start" }
-  | { type: "snapshot"; message: AgentMessage }
+  | { type: "snapshot"; message: RawAgentMessage }
   | { type: "delta"; event: ClientAssistantMessageEvent }
   | { type: "end" };
 

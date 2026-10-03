@@ -141,7 +141,9 @@ export class AgentEventConnection {
       if (this.current !== connection) return;
       let event: AgentEventLike;
       try {
-        event = JSON.parse(message.data) as AgentEventLike;
+        const parsed: unknown = JSON.parse(message.data);
+        if (!parsed || typeof parsed !== "object" || !("type" in parsed) || typeof parsed.type !== "string") return;
+        event = parsed as AgentEventLike;
       } catch {
         return;
       }
